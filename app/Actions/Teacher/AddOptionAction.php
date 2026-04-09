@@ -11,6 +11,11 @@ class AddOptionAction
     {
         $isCorrect = $data['is_correct'] ?? false;
 
+        // First option on a question defaults to correct
+        if ($question->options()->count() === 0) {
+            $isCorrect = true;
+        }
+
         if ($isCorrect) {
             $question->options()->update(['is_correct' => false]);
         }
