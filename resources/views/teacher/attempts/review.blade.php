@@ -25,7 +25,7 @@
                     <div class="mb-2"><span class="text-muted small">Started:</span> {{ $attempt->started_at?->format('M d, Y H:i:s') }}</div>
                     <div class="mb-2"><span class="text-muted small">Submitted:</span> {{ $attempt->submitted_at?->format('M d, Y H:i:s') ?? 'Not submitted' }}</div>
                     @if($attempt->started_at && $attempt->submitted_at)
-                        <div><span class="text-muted small">Duration:</span> {{ $attempt->started_at->diffInMinutes($attempt->submitted_at) }} minutes</div>
+                        <div><span class="text-muted small">Duration:</span> {{ round($attempt->started_at->diffInMinutes($attempt->submitted_at)) }} minutes</div>
                     @endif
                 </div>
             </div>
