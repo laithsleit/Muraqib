@@ -12,10 +12,11 @@ class AntiCheatMonitor {
         this.baselineGaze = null;
         this.baselineHead = null;
         // How far iris can deviate from baseline before counting as "eyes looking away"
-        this.irisToleranceH = 0.15;
+        this.irisToleranceH = 0.20;
         // How far head (nose) can rotate from baseline before counting as "head turned"
-        this.headToleranceH = 0.12;
-        this.headToleranceV = 0.10;
+        // Wide because check page baseline is looking at camera, exam is looking at questions
+        this.headToleranceH = 0.25;
+        this.headToleranceV = 0.15;
         // Must be looking away for 1s before firing
         this._gazeAwayStart = null;
         this._gazeSustainMs = 1000;
@@ -207,11 +208,19 @@ class AntiCheatMonitor {
             if (this.baselineHead) {
                 const dX = Math.abs(headX - this.baselineHead.x);
                 const dY = Math.abs(headY - this.baselineHead.y);
-                if (dX > this.headToleranceH) reason = 'head-H';
-                if (dY > this.headToleranceV) reason = 'head-V';
+                if (dX > this.headToleranceH) {
+                    reason = 'head-H';
+                    this._gazeDebugInfo = `dX=${dX.toFixed(3)} tol=${this.headToleranceH}`;
+                }
+                if (dY > this.headToleranceV) {
+                    reason = 'head-V';
+                    this._gazeDebugInfo = `dY=${dY.toFixed(3)} tol=${this.headToleranceV}`;
+                }
             } else {
-                // No baseline — use absolute: nose should be roughly centered
-                if (Math.abs(headX) > 0.15) reason = 'head-H';
+                if (Math.abs(headX) > 0.20) {
+                    reason = 'head-H';
+                    this._gazeDebugInfo = `headX=${headX.toFixed(3)}`;
+                }
             }
         }
 
@@ -232,6 +241,7 @@ class AntiCheatMonitor {
                     const dRx = Math.abs(rx - this.baselineGaze.rx);
                     if (dLx > this.irisToleranceH && dRx > this.irisToleranceH) {
                         reason = 'iris-H';
+                        this._gazeDebugInfo = `dL=${dLx.toFixed(3)} dR=${dRx.toFixed(3)} tol=${this.irisToleranceH}`;
                     }
                 }
             }
@@ -244,7 +254,7 @@ class AntiCheatMonitor {
                 this._gazeAwayStart = now;
             }
             if (now - this._gazeAwayStart >= this._gazeSustainMs) {
-                console.log(`[Muraqib] LOOKING AWAY: ${reason} | sustained ${now - this._gazeAwayStart}ms`);
+                console.log(`[Muraqib] LOOKING AWAY: ${reason} | ${this._gazeDebugInfo || ''} | sustained ${now - this._gazeAwayStart}ms`);
                 this.reportEvent('looking_away');
                 this._gazeAwayStart = null;
             }
