@@ -102,7 +102,7 @@
                     <div class="card-body p-2 text-center">
                         <div style="position: relative; display: inline-block;">
                             <video id="monitorVideo" autoplay muted playsinline style="width: 200px; border-radius: 8px; display: block;"></video>
-                            <canvas id="monitorCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+                            <canvas id="monitorCanvas" style="position: absolute; top: 0; left: 0; width: 200px; pointer-events: none;"></canvas>
                         </div>
                         <div class="d-flex align-items-center justify-content-center gap-1 mt-2">
                             <span class="d-inline-block rounded-circle" style="width: 8px; height: 8px; background: var(--success);"></span>
@@ -134,9 +134,10 @@
                 video.srcObject = stream;
 
                 await new Promise(resolve => { video.onloadedmetadata = resolve; });
+                await new Promise(resolve => requestAnimationFrame(resolve));
                 const canvas = document.getElementById('monitorCanvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+                canvas.width = video.clientWidth;
+                canvas.height = video.clientHeight;
             } catch (err) {
                 document.getElementById('cameraBlockOverlay').style.display = 'flex';
                 document.getElementById('quizContent').style.display = 'none';

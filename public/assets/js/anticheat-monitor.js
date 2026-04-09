@@ -6,8 +6,9 @@ class AntiCheatMonitor {
         this.videoElement = null;
         this.canvasElement = null;
         this.faceMesh = null;
-        this.camera = null;
         this.cocoModel = null;
+        this._rafId = null;
+        this._destroyed = false;
         this.referenceNoseRatio = null;
         this.referenceLeftRatio = null;
         this.referenceRightRatio = null;
@@ -82,18 +83,24 @@ class AntiCheatMonitor {
 
             this.faceMesh.onResults((results) => this.onFaceResults(results));
 
-            this.camera = new Camera(this.videoElement, {
-                onFrame: async () => {
-                    await this.faceMesh.send({ image: this.videoElement });
-                },
-                width: this.videoElement.videoWidth,
-                height: this.videoElement.videoHeight,
-            });
-
-            await this.camera.start();
+            // Use requestAnimationFrame loop instead of Camera helper
+            // because the video stream is already running from the page script
+            this._sendFrame();
         } catch (err) {
             // Face detection runs best-effort
         }
+    }
+
+    async _sendFrame() {
+        if (this._destroyed) return;
+        if (this.faceMesh && this.videoElement && this.videoElement.videoWidth > 0) {
+            try {
+                await this.faceMesh.send({ image: this.videoElement });
+            } catch (err) {
+                // Skip frame on error
+            }
+        }
+        this._rafId = requestAnimationFrame(() => this._sendFrame());
     }
 
     async initCocoSsd() {
@@ -361,9 +368,10 @@ class AntiCheatMonitor {
     }
 
     destroy() {
-        if (this.camera) {
-            this.camera.stop();
-            this.camera = null;
+        this._destroyed = true;
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = null;
         }
         if (this.phoneDetectionInterval) {
             clearInterval(this.phoneDetectionInterval);
