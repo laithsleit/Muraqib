@@ -19,6 +19,9 @@ class AntiCheatMonitor {
         // Must look away for this many ms before firing event
         this._gazeAwayStart = null;
         this._gazeSustainMs = 1000;
+        // Face changed sustain — must be a different face for 2s
+        this._faceChangedStart = null;
+        this._faceChangedSustainMs = 2000;
         this.reportEndpoint = '';
         this.csrfToken = '';
         this.submitEndpoint = '';
@@ -280,8 +283,22 @@ class AntiCheatMonitor {
         const leftDiff = Math.abs(currentLeftRatio - this.referenceLeftRatio);
         const rightDiff = Math.abs(currentRightRatio - this.referenceRightRatio);
 
-        if (leftDiff > 0.12 || rightDiff > 0.12) {
-            this.reportEvent('face_changed');
+        // Both ratios must be off — head turning shifts one side but not both
+        // Threshold 0.20 is wide enough to ignore head rotation
+        const isDifferent = leftDiff > 0.20 && rightDiff > 0.20;
+
+        const now = Date.now();
+        if (isDifferent) {
+            if (!this._faceChangedStart) {
+                this._faceChangedStart = now;
+            }
+            if (now - this._faceChangedStart >= this._faceChangedSustainMs) {
+                console.log(`[Muraqib Face] FIRED | leftDiff=${leftDiff.toFixed(3)} rightDiff=${rightDiff.toFixed(3)} | sustained ${now - this._faceChangedStart}ms`);
+                this.reportEvent('face_changed');
+                this._faceChangedStart = null;
+            }
+        } else {
+            this._faceChangedStart = null;
         }
     }
 
