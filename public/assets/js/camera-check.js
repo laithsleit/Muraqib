@@ -44,7 +44,7 @@ class CameraCheck {
             await this.initFaceMesh();
         } catch (err) {
             console.error('[Muraqib] FaceMesh init error:', err);
-            this.updateStatus('no-camera', 'Failed to load face detection. Please reload.');
+            this.updateStatus('no-camera', 'FaceMesh error: ' + (err.message || err));
             return;
         }
     }
