@@ -39,4 +39,22 @@
             Sign In <i class="bi bi-arrow-right ms-1"></i>
         </button>
     </form>
+
+    <hr class="my-4" style="border-color: var(--border);">
+    <p class="text-center text-muted small mb-2">Quick login as demo account</p>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill demo-login-btn" data-email="admin@quiz.com" data-password="password">Admin</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill demo-login-btn" data-email="teacher@quiz.com" data-password="password">Teacher</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill demo-login-btn" data-email="student1@quiz.com" data-password="password">Student 1</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill demo-login-btn" data-email="student2@quiz.com" data-password="password">Student 2</button>
+    </div>
+
+    <script>
+        document.querySelectorAll('.demo-login-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.getElementById('email').value = this.dataset.email;
+                document.getElementById('password').value = this.dataset.password;
+            });
+        });
+    </script>
 @endsection
