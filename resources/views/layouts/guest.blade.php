@@ -18,23 +18,63 @@
                 <img src="{{ asset('assets/img/logo.svg') }}" alt="Muraqib">
                 Muraqib
             </a>
-            <div class="d-flex align-items-center gap-2">
-                <a href="{{ route('login') }}" class="btn btn-primary">
-                    <i class="bi bi-box-arrow-in-right me-1"></i> Login
-                </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#guestNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="guestNav">
+                <ul class="navbar-nav mx-auto gap-1">
+                    <li class="nav-item"><a class="nav-link" href="/#features">Features</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/#how-it-works">How It Works</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/#about">About</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/#faq">FAQ</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/#contact">Contact</a></li>
+                </ul>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ route('login') }}" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Login
+                    </a>
+                </div>
             </div>
         </div>
     </nav>
 
     @yield('content')
 
-    <footer class="site-footer py-4 text-center border-top mt-5">
+    <footer class="site-footer py-5 border-top">
         <div class="container">
-            <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
-                <img src="{{ asset('assets/img/logo.svg') }}" alt="Muraqib" height="20">
-                <span class="fw-semibold" style="color: var(--text-main);">Muraqib</span>
+            <div class="row g-4">
+                <div class="col-lg-4 mb-3 mb-lg-0">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <img src="{{ asset('assets/img/logo.svg') }}" alt="Muraqib" height="24">
+                        <span class="fw-bold" style="color: var(--text-main); font-size: 1.05rem;">Muraqib</span>
+                    </div>
+                    <p class="mb-0" style="font-size: 0.85rem; max-width: 280px;">Smart quiz monitoring platform built for academic integrity. Free and open for all educators.</p>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <h6 class="fw-bold mb-3" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">Platform</h6>
+                    <ul class="list-unstyled" style="font-size: 0.85rem;">
+                        <li class="mb-2"><a href="/#features">Features</a></li>
+                        <li class="mb-2"><a href="/#how-it-works">How It Works</a></li>
+                        <li><a href="/#faq">FAQ</a></li>
+                    </ul>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <h6 class="fw-bold mb-3" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">Company</h6>
+                    <ul class="list-unstyled" style="font-size: 0.85rem;">
+                        <li class="mb-2"><a href="/#about">About</a></li>
+                        <li class="mb-2"><a href="/#contact">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-4">
+                    <h6 class="fw-bold mb-3" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-main);">Get Started</h6>
+                    <p style="font-size: 0.85rem;" class="mb-3">Sign in to start creating secure assessments today.</p>
+                    <a href="{{ route('login') }}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Login
+                    </a>
+                </div>
             </div>
-            <p class="mb-0">&copy; {{ date('Y') }} Muraqib. All rights reserved.</p>
+            <hr class="my-4" style="border-color: var(--border);">
+            <p class="text-center mb-0">&copy; {{ date('Y') }} Muraqib. All rights reserved.</p>
         </div>
     </footer>
 
