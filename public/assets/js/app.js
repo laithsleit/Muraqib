@@ -1,0 +1,1 @@
+// Muraqib application JavaScript

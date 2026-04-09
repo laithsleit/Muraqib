@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Shield body -->
+  <path d="M24 4C24 4 8 10 8 10V26C8 36 24 44 24 44C24 44 40 36 40 26V10C40 10 24 4 24 4Z" fill="white" opacity="0.15"/>
+  <path d="M24 6.5C24 6.5 10 11.5 10 11.5V26C10 34.5 24 41.5 24 41.5C24 41.5 38 34.5 38 26V11.5C38 11.5 24 6.5 24 6.5Z" fill="white" opacity="0.25"/>
+  <!-- Eye / monitor symbol -->
+  <ellipse cx="24" cy="22" rx="8" ry="5.5" fill="none" stroke="white" stroke-width="1.8"/>
+  <circle cx="24" cy="22" r="2.8" fill="white"/>
+  <!-- Checkmark -->
+  <path d="M20 30L23 33L28 27.5" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="12" y1="8" x2="36" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#g1)"/>
+  <!-- Inner glow -->
+  <rect x="2" y="2" width="44" height="44" rx="12" fill="white" opacity="0.08"/>
+  <!-- Shield body -->
+  <path d="M24 8C24 8 12 12 12 12V25C12 33 24 40 24 40C24 40 36 33 36 25V12C36 12 24 8 24 8Z" fill="white" opacity="0.2"/>
+  <path d="M24 10C24 10 13.5 13.5 13.5 13.5V25.5C13.5 32 24 38 24 38C24 38 34.5 32 34.5 25.5V13.5C34.5 13.5 24 10 24 10Z" fill="white" opacity="0.95"/>
+  <!-- Eye / monitor symbol inside shield -->
+  <ellipse cx="24" cy="23" rx="7.5" ry="5" fill="none" stroke="url(#g2)" stroke-width="1.8"/>
+  <circle cx="24" cy="23" r="2.5" fill="url(#g2)"/>
+  <!-- Small checkmark below eye -->
+  <path d="M20.5 30L23 32.5L27.5 28" fill="none" stroke="#22c55e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
