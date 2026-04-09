@@ -15,7 +15,7 @@ class AntiCheatMonitor {
         this.baselineGaze = null;
         // Tolerance from baseline before "looking away" fires
         this.gazeTolH = 0.28;
-        this.gazeTolV = 0.35;
+        this.gazeTolV = 0.42;
         this.reportEndpoint = '';
         this.csrfToken = '';
         this.submitEndpoint = '';
@@ -279,6 +279,7 @@ class AntiCheatMonitor {
             const vh = this.videoElement.clientHeight;
             const vidW = this.videoElement.videoWidth;
             const vidH = this.videoElement.videoHeight;
+            // Store both display-scaled and native-resolution boxes
             this._phoneBoxes = phones.map(p => ({
                 x: p.bbox[0] * (vw / vidW),
                 y: p.bbox[1] * (vh / vidH),
@@ -286,9 +287,23 @@ class AntiCheatMonitor {
                 h: p.bbox[3] * (vh / vidH),
                 score: p.score,
             }));
+            this._phoneBoxesNative = phones.map(p => ({
+                x: p.bbox[0],
+                y: p.bbox[1],
+                w: p.bbox[2],
+                h: p.bbox[3],
+                score: p.score,
+            }));
 
             if (phones.length > 0) {
+                // Draw boxes onto canvas NOW so the screenshot captures them
+                const ctx = this.canvasElement.getContext('2d');
+                this.drawPhoneBoxes(ctx);
                 this.reportEvent('phone_detected');
+                // Clear boxes after 3 seconds so they don't persist forever
+                setTimeout(() => { this._phoneBoxes = []; }, 3000);
+            } else {
+                this._phoneBoxes = [];
             }
 
             // Log secondary suspicious objects to console only
@@ -331,6 +346,24 @@ class AntiCheatMonitor {
             ctx.drawImage(this.videoElement, 0, 0);
             // Draw the mesh/detection overlay on top so reviewers can see it
             ctx.drawImage(this.canvasElement, 0, 0, canvas.width, canvas.height);
+            // Draw phone boxes at native resolution for clear visibility
+            if (this._phoneBoxesNative && this._phoneBoxesNative.length > 0) {
+                for (const box of this._phoneBoxesNative) {
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([8, 4]);
+                    ctx.strokeRect(box.x, box.y, box.w, box.h);
+                    ctx.setLineDash([]);
+
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+                    ctx.font = 'bold 16px sans-serif';
+                    const label = 'Phone ' + Math.round(box.score * 100) + '%';
+                    const tw = ctx.measureText(label).width;
+                    ctx.fillRect(box.x, box.y - 22, tw + 10, 22);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(label, box.x + 5, box.y - 5);
+                }
+            }
             return canvas.toDataURL('image/jpeg', this.screenshotQuality);
         } catch (err) {
             return null;
