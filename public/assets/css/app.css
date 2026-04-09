@@ -686,6 +686,34 @@ body {
     filter: none;
 }
 
+/* ─── Camera Preview ─── */
+
+.camera-preview-box {
+    position: relative;
+    max-width: 480px;
+    aspect-ratio: 4/3;
+    background: #0f172a;
+    border-radius: var(--radius);
+    border: 2px solid var(--border);
+    overflow: hidden;
+}
+
+.camera-preview-box video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+}
+
+.camera-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
 /* ─── Utilities ─── */
 
 .text-gradient {
