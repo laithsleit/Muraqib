@@ -4,6 +4,7 @@ namespace App\Actions\AntiCheat;
 
 use App\Models\Attempt;
 use App\Models\SuspiciousEvent;
+use Illuminate\Support\Facades\Storage;
 
 class RecordSuspiciousEventAction
 {
@@ -11,12 +12,21 @@ class RecordSuspiciousEventAction
     {
         $eventType = $data['event_type'];
         $points = config('anticheat.event_points')[$eventType];
+        $screenshot = $data['screenshot'] ?? null;
+
+        $path = null;
+        if (!empty($screenshot)) {
+            $decoded = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $screenshot));
+            $filename = 'screenshots/' . $attempt->id . '/' . uniqid() . '.jpg';
+            Storage::disk(config('anticheat.screenshot_disk'))->put($filename, $decoded);
+            $path = $filename;
+        }
 
         SuspiciousEvent::create([
             'attempt_id' => $attempt->id,
             'event_type' => $eventType,
             'points' => $points,
-            'screenshot' => $data['screenshot'] ?? null,
+            'screenshot_path' => $path,
             'occurred_at' => $data['occurred_at'],
         ]);
 

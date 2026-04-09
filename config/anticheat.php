@@ -22,5 +22,6 @@ return [
         'phone_detected'  => 'A phone or external device is detected',
         'tab_switch'      => 'Student navigated away from the quiz tab',
     ],
+    'screenshot_disk' => 'anticheat',
     'default_threshold' => 60,
 ];

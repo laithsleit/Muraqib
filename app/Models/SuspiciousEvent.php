@@ -11,7 +11,7 @@ class SuspiciousEvent extends Model
         'attempt_id',
         'event_type',
         'points',
-        'screenshot',
+        'screenshot_path',
         'occurred_at',
     ];
 

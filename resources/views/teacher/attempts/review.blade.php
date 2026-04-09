@@ -14,7 +14,6 @@
         <h4 class="fw-bold mb-0">Attempt Review</h4>
     </div>
 
-    {{-- Student & Score Info --}}
     <div class="row g-3 mb-4">
         <div class="col-lg-6">
             <div class="card h-100">
@@ -59,14 +58,12 @@
         </div>
     </div>
 
-    {{-- Flag Status --}}
     @if($attempt->is_flagged)
         <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Flagged:</strong> {{ $attempt->flag_reason }}</div>
     @else
         <div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>No suspicious activity threshold exceeded.</div>
     @endif
 
-    {{-- Suspicious Events Timeline --}}
     <div class="card mb-4">
         <div class="card-header"><i class="bi bi-shield-exclamation me-1"></i> Suspicious Events</div>
         <div class="card-body p-0">
@@ -92,11 +89,11 @@
                                     <td><span class="fw-semibold">+{{ $event->points }}</span></td>
                                     <td class="small">{{ $event->occurred_at->format('H:i:s') }}</td>
                                     <td>
-                                        @if($event->screenshot)
-                                            <img src="{{ $event->screenshot }}" alt="Screenshot"
+                                        @if($event->screenshot_path)
+                                            <img src="{{ route('teacher.screenshots.show', $event) }}" alt="Screenshot"
                                                  style="max-width: 80px; border-radius: 4px; cursor: pointer;"
                                                  data-bs-toggle="modal" data-bs-target="#screenshotModal"
-                                                 onclick="document.getElementById('screenshotImg').src = this.src">
+                                                 data-src="{{ route('teacher.screenshots.show', $event) }}">
                                         @else
                                             <span class="text-muted small">—</span>
                                         @endif
@@ -117,7 +114,6 @@
         </div>
     </div>
 
-    {{-- Screenshot Modal --}}
     <div class="modal fade" id="screenshotModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
@@ -126,13 +122,12 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body text-center">
-                    <img id="screenshotImg" src="" alt="Screenshot" style="max-width: 100%; border-radius: 8px;">
+                    <img id="modalScreenshot" src="" alt="Screenshot" style="max-width: 100%; border-radius: 8px;">
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- Answer Review --}}
     <h5 class="fw-bold mb-3">Answer Review</h5>
     @foreach($questions as $index => $question)
         @php
@@ -187,7 +182,6 @@
         <button type="button" class="btn btn-outline-secondary" onclick="showExportToast()"><i class="bi bi-file-pdf me-1"></i> Export PDF</button>
     </div>
 
-    {{-- Toast container for PDF export --}}
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
         <div class="toast align-items-center text-bg-info border-0" id="exportToast" role="alert">
             <div class="d-flex">
@@ -203,5 +197,10 @@
         function showExportToast() {
             new bootstrap.Toast(document.getElementById('exportToast')).show();
         }
+        document.querySelectorAll('[data-bs-target="#screenshotModal"]').forEach(function (img) {
+            img.addEventListener('click', function () {
+                document.getElementById('modalScreenshot').src = img.dataset.src;
+            });
+        });
     </script>
 @endpush

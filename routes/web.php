@@ -15,6 +15,7 @@ use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardControll
 use App\Http\Controllers\Teacher\OptionController;
 use App\Http\Controllers\Teacher\QuestionController;
 use App\Http\Controllers\Teacher\QuizController;
+use App\Http\Controllers\Teacher\ScreenshotController;
 use App\Http\Controllers\Teacher\SubjectController;
 use App\Http\Controllers\Teacher\SubjectStudentController;
 use Illuminate\Support\Facades\Route;
@@ -95,6 +96,7 @@ Route::middleware('auth')->group(function () {
         // Attempts
         Route::get('/quizzes/{quiz}/attempts', [TeacherAttemptController::class, 'index'])->name('teacher.attempts.index');
         Route::get('/attempts/{attempt}/review', [TeacherAttemptController::class, 'review'])->name('teacher.attempts.review');
+        Route::get('/screenshots/{event}', [ScreenshotController::class, 'show'])->name('teacher.screenshots.show');
 
         Route::get('/anticheat-guide', function () {
             return view('teacher.anticheat-guide');
