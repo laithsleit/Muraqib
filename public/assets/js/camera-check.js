@@ -1,112 +1,119 @@
-// Pre-quiz camera verification with face landmark overlay and descriptor capture
+// Pre-quiz camera verification with MediaPipe FaceMesh overlay and landmark capture
 
 class CameraCheck {
-    constructor({ videoEl, canvasEl, placeholderEl, statusEl, startBtn, modelUrl }) {
+    constructor({ videoEl, canvasEl, placeholderEl, statusEl, startBtn }) {
         this.video = videoEl;
         this.canvas = canvasEl;
         this.placeholder = placeholderEl;
         this.status = statusEl;
         this.startBtn = startBtn;
-        this.modelUrl = modelUrl || '/assets/models';
         this.stream = null;
-        this.interval = null;
-        this.modelsLoaded = false;
-        this.displaySize = null;
+        this.faceMesh = null;
+        this.camera = null;
     }
 
     async init() {
         this.updateStatus('loading', 'Requesting camera access...');
 
         try {
-            await this.startStream();
+            this.stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            this.video.srcObject = this.stream;
+            this.placeholder.style.display = 'none';
+            this.video.style.display = 'block';
+
+            await new Promise(resolve => {
+                this.video.onloadedmetadata = () => {
+                    this.video.play();
+                    resolve();
+                };
+            });
+
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            this.canvas.width = this.video.clientWidth;
+            this.canvas.height = this.video.clientHeight;
         } catch (err) {
             this.updateStatus('no-camera', 'Camera Access Required — please allow camera access and reload.');
             return;
         }
 
-        this.updateStatus('loading', 'Loading face detection models...');
+        this.updateStatus('loading', 'Initialising face detection...');
 
         try {
-            await this.loadModels();
+            await this.initFaceMesh();
         } catch (err) {
             this.updateStatus('no-camera', 'Failed to load face detection. Please reload.');
             return;
         }
-
-        this.interval = setInterval(() => this.detect(), 800);
     }
 
-    async startStream() {
-        this.stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        this.video.srcObject = this.stream;
-        this.placeholder.style.display = 'none';
-        this.video.style.display = 'block';
-
-        await new Promise(resolve => {
-            this.video.onloadedmetadata = () => {
-                this.video.play();
-                resolve();
-            };
+    async initFaceMesh() {
+        this.faceMesh = new FaceMesh({
+            locateFile: (file) => {
+                return '/assets/mediapipe/face_mesh/' + file;
+            },
         });
 
-        // Wait a frame for the video element to have display dimensions
-        await new Promise(resolve => requestAnimationFrame(resolve));
+        this.faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7,
+        });
 
-        this.displaySize = { width: this.video.clientWidth, height: this.video.clientHeight };
-        this.canvas.width = this.displaySize.width;
-        this.canvas.height = this.displaySize.height;
+        this.faceMesh.onResults((results) => this.onResults(results));
+
+        this.camera = new Camera(this.video, {
+            onFrame: async () => {
+                await this.faceMesh.send({ image: this.video });
+            },
+            width: this.video.videoWidth,
+            height: this.video.videoHeight,
+        });
+
+        await this.camera.start();
     }
 
-    async loadModels() {
-        await Promise.all([
-            faceapi.nets.tinyFaceDetector.loadFromUri(this.modelUrl),
-            faceapi.nets.faceLandmark68Net.loadFromUri(this.modelUrl),
-            faceapi.nets.faceRecognitionNet.loadFromUri(this.modelUrl),
-        ]);
-        this.modelsLoaded = true;
-    }
-
-    async detect() {
-        if (!this.modelsLoaded || !this.video.videoWidth) return;
-
+    onResults(results) {
         const ctx = this.canvas.getContext('2d');
-        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        ctx.clearRect(0, 0, w, h);
 
-        try {
-            const detections = await faceapi
-                .detectAllFaces(this.video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
-                .withFaceLandmarks()
-                .withFaceDescriptors();
-
-            const resized = faceapi.resizeResults(detections, this.displaySize);
-
-            resized.forEach(det => {
-                const box = det.detection.box;
-                ctx.strokeStyle = '#4f46e5';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(box.x, box.y, box.width, box.height);
-
-                det.landmarks.positions.forEach(pt => {
-                    ctx.beginPath();
-                    ctx.arc(pt.x, pt.y, 1.5, 0, 2 * Math.PI);
-                    ctx.fillStyle = '#06b6d4';
-                    ctx.fill();
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            for (const landmarks of results.multiFaceLandmarks) {
+                // Draw face mesh tessellation
+                drawConnectors(ctx, landmarks, FACEMESH_TESSELATION, {
+                    color: 'rgba(79, 70, 229, 0.3)',
+                    lineWidth: 0.5,
                 });
-            });
 
-            if (detections.length === 0) {
-                this.updateStatus('no-face', 'No face detected — position yourself in front of the camera');
-                this.enableStartButton(false);
-            } else if (detections.length > 1) {
-                this.updateStatus('multiple', 'Multiple faces detected — only one person allowed');
-                this.enableStartButton(false);
-            } else {
-                localStorage.setItem('muraqib_face_descriptor', JSON.stringify(Array.from(detections[0].descriptor)));
+                // Draw face contours
+                drawConnectors(ctx, landmarks, FACEMESH_FACE_OVAL, {
+                    color: '#4f46e5',
+                    lineWidth: 1.5,
+                });
+
+                // Draw iris contours in cyan
+                drawConnectors(ctx, landmarks, FACEMESH_RIGHT_IRIS, {
+                    color: '#06b6d4',
+                    lineWidth: 1.5,
+                });
+                drawConnectors(ctx, landmarks, FACEMESH_LEFT_IRIS, {
+                    color: '#06b6d4',
+                    lineWidth: 1.5,
+                });
+            }
+
+            if (results.multiFaceLandmarks.length === 1) {
+                window.muraqibReferenceLandmarks = results.multiFaceLandmarks[0];
                 this.updateStatus('ok', 'Camera check passed — face registered');
                 this.enableStartButton(true);
+            } else {
+                this.updateStatus('multiple', 'Multiple faces detected — only one person allowed');
+                this.enableStartButton(false);
             }
-        } catch (err) {
-            this.updateStatus('no-camera', 'Detection error. Please reload.');
+        } else {
+            this.updateStatus('no-face', 'No face detected — position yourself in front of the camera');
             this.enableStartButton(false);
         }
     }

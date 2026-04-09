@@ -1,24 +1,34 @@
-// Real-time anti-cheat monitoring with face recognition and landmark tracking
+// Real-time anti-cheat monitoring with MediaPipe FaceMesh and COCO-SSD phone detection
 
 class AntiCheatMonitor {
     constructor() {
         this.attemptId = null;
         this.videoElement = null;
         this.canvasElement = null;
-        this.detectionInterval = 3000;
-        this.tabSwitchDebounce = 2000;
-        this.screenshotQuality = 0.5;
-        this.faceMatchThreshold = 0.55;
+        this.faceMesh = null;
+        this.camera = null;
+        this.cocoModel = null;
+        this.referenceNoseRatio = null;
+        this.referenceLeftRatio = null;
+        this.referenceRightRatio = null;
         this.reportEndpoint = '';
         this.csrfToken = '';
-        this.modelUrl = '/assets/models';
         this.submitEndpoint = '';
         this.resultsEndpoint = '';
+        this.screenshotQuality = 0.5;
         this.lastTabSwitchAt = 0;
-        this.intervalHandle = null;
+        this.tabSwitchDebounce = 2000;
+        this.phoneDetectionInterval = null;
         this.stream = null;
-        this.referenceFace = null;
-        this.modelsLoaded = false;
+
+        this.lastEventTimes = {};
+        this.eventDebounce = {
+            face_missing: 5000,
+            multiple_faces: 5000,
+            looking_away: 8000,
+            face_changed: 10000,
+            phone_detected: 15000,
+        };
     }
 
     init(config) {
@@ -29,132 +39,218 @@ class AntiCheatMonitor {
         this.csrfToken = config.csrfToken;
         this.submitEndpoint = config.submitEndpoint;
         this.resultsEndpoint = config.resultsEndpoint;
-
-        if (config.detectionInterval) this.detectionInterval = config.detectionInterval;
-        if (config.tabSwitchDebounce) this.tabSwitchDebounce = config.tabSwitchDebounce;
         if (config.screenshotQuality) this.screenshotQuality = config.screenshotQuality;
-        if (config.faceMatchThreshold) this.faceMatchThreshold = config.faceMatchThreshold;
-        if (config.modelUrl) this.modelUrl = config.modelUrl;
 
-        this.loadReferenceFace();
-        this.loadAndStartDetection();
+        this.loadReference();
+        this.initFaceMesh();
+        this.initCocoSsd();
         this.bindTabSwitch();
         this.bindAutoSubmitOnLeave();
     }
 
-    loadReferenceFace() {
+    loadReference() {
+        const ref = window.muraqibReferenceLandmarks;
+        if (!ref || ref.length < 468) return;
+
+        const nose = ref[1];
+        const leftCheek = ref[234];
+        const rightCheek = ref[454];
+        const faceWidth = Math.hypot(rightCheek.x - leftCheek.x, rightCheek.y - leftCheek.y);
+        if (faceWidth < 0.001) return;
+
+        const noseToLeft = Math.hypot(nose.x - leftCheek.x, nose.y - leftCheek.y);
+        const noseToRight = Math.hypot(nose.x - rightCheek.x, nose.y - rightCheek.y);
+        this.referenceLeftRatio = noseToLeft / faceWidth;
+        this.referenceRightRatio = noseToRight / faceWidth;
+        this.referenceNoseRatio = (nose.x - leftCheek.x) / (rightCheek.x - leftCheek.x);
+    }
+
+    async initFaceMesh() {
         try {
-            const stored = localStorage.getItem('muraqib_face_descriptor');
-            if (stored) {
-                this.referenceFace = new Float32Array(JSON.parse(stored));
-            }
+            this.faceMesh = new FaceMesh({
+                locateFile: (file) => {
+                    return '/assets/mediapipe/face_mesh/' + file;
+                },
+            });
+
+            this.faceMesh.setOptions({
+                maxNumFaces: 2,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.7,
+                minTrackingConfidence: 0.7,
+            });
+
+            this.faceMesh.onResults((results) => this.onFaceResults(results));
+
+            this.camera = new Camera(this.videoElement, {
+                onFrame: async () => {
+                    await this.faceMesh.send({ image: this.videoElement });
+                },
+                width: this.videoElement.videoWidth,
+                height: this.videoElement.videoHeight,
+            });
+
+            await this.camera.start();
         } catch (err) {
-            this.referenceFace = null;
+            // Face detection runs best-effort
         }
     }
 
-    async loadAndStartDetection() {
+    async initCocoSsd() {
         try {
-            if (typeof faceapi !== 'undefined') {
-                await Promise.all([
-                    faceapi.nets.tinyFaceDetector.loadFromUri(this.modelUrl),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(this.modelUrl),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(this.modelUrl),
-                ]);
-                this.modelsLoaded = true;
-            }
+            this.cocoModel = await cocoSsd.load({
+                modelUrl: '/assets/models/coco-ssd/model.json',
+            });
+            this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 5000);
         } catch (err) {
-            // Detection runs best-effort
-        }
-        this.intervalHandle = setInterval(() => this.detect(), this.detectionInterval);
-    }
-
-    async detect() {
-        if (!this.videoElement || !this.videoElement.videoWidth || !this.modelsLoaded) return;
-
-        try {
-            const detections = await faceapi
-                .detectAllFaces(this.videoElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
-                .withFaceLandmarks()
-                .withFaceDescriptors();
-
-            this.drawOverlay(detections);
-
-            if (detections.length === 0) {
-                this.reportEvent('face_missing');
-                return;
+            // Phone detection runs best-effort; try CDN fallback
+            try {
+                this.cocoModel = await cocoSsd.load();
+                this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 5000);
+            } catch (e) {
+                // No phone detection available
             }
-
-            if (detections.length > 1) {
-                this.reportEvent('multiple_faces');
-                return;
-            }
-
-            const detection = detections[0];
-
-            // Face recognition — compare against reference
-            if (this.referenceFace) {
-                const distance = faceapi.euclideanDistance(detection.descriptor, this.referenceFace);
-                if (distance > this.faceMatchThreshold) {
-                    this.reportEvent('face_changed');
-                    return;
-                }
-            }
-
-            // Head direction from landmarks — check nose and eye positions
-            const landmarks = detection.landmarks;
-            const nose = landmarks.getNose();
-            const leftEye = landmarks.getLeftEye();
-            const rightEye = landmarks.getRightEye();
-
-            const noseX = nose[3].x;
-            const eyeCenterX = (leftEye[0].x + rightEye[3].x) / 2;
-            const faceWidth = detection.detection.box.width;
-
-            // Horizontal offset of nose from eye center relative to face width
-            const horizontalRatio = (noseX - eyeCenterX) / faceWidth;
-            // Vertical: if nose tip is too high or low relative to eye line
-            const eyeY = (leftEye[0].y + rightEye[3].y) / 2;
-            const noseY = nose[6].y;
-            const verticalRatio = (noseY - eyeY) / detection.detection.box.height;
-
-            if (Math.abs(horizontalRatio) > 0.15 || verticalRatio < 0.1 || verticalRatio > 0.45) {
-                this.reportEvent('looking_away');
-            }
-        } catch (err) {
-            // Never crash the quiz
         }
     }
 
-    drawOverlay(detections) {
-        if (!this.canvasElement || !this.videoElement) return;
+    onFaceResults(results) {
         const ctx = this.canvasElement.getContext('2d');
-
-        // Sync canvas internal size to video display size
         const vw = this.videoElement.clientWidth;
         const vh = this.videoElement.clientHeight;
         if (this.canvasElement.width !== vw) this.canvasElement.width = vw;
         if (this.canvasElement.height !== vh) this.canvasElement.height = vh;
-
         ctx.clearRect(0, 0, vw, vh);
-        if (detections.length === 0) return;
 
-        const displaySize = { width: vw, height: vh };
-        const resized = faceapi.resizeResults(detections, displaySize);
+        const faces = results.multiFaceLandmarks || [];
 
-        resized.forEach(det => {
-            const box = det.detection.box;
-            ctx.strokeStyle = '#4f46e5';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(box.x, box.y, box.width, box.height);
+        if (faces.length === 0) {
+            this.reportEvent('face_missing');
+            return;
+        }
 
-            det.landmarks.positions.forEach(pt => {
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 1, 0, 2 * Math.PI);
-                ctx.fillStyle = '#06b6d4';
-                ctx.fill();
-            });
+        if (faces.length > 1) {
+            this.reportEvent('multiple_faces');
+            // Still draw all faces
+            for (const landmarks of faces) {
+                this.drawFaceMesh(ctx, landmarks);
+            }
+            return;
+        }
+
+        // Exactly one face
+        const landmarks = faces[0];
+        this.drawFaceMesh(ctx, landmarks);
+
+        // Looking away — iris-based gaze estimation
+        if (landmarks.length >= 478) {
+            this.checkGaze(landmarks);
+        }
+
+        // Face changed — structural comparison
+        if (this.referenceNoseRatio !== null) {
+            this.checkFaceChanged(landmarks);
+        }
+    }
+
+    drawFaceMesh(ctx, landmarks) {
+        drawConnectors(ctx, landmarks, FACEMESH_TESSELATION, {
+            color: 'rgba(79, 70, 229, 0.3)',
+            lineWidth: 0.5,
         });
+        drawConnectors(ctx, landmarks, FACEMESH_FACE_OVAL, {
+            color: '#4f46e5',
+            lineWidth: 1.5,
+        });
+        drawConnectors(ctx, landmarks, FACEMESH_RIGHT_IRIS, {
+            color: '#06b6d4',
+            lineWidth: 1.5,
+        });
+        drawConnectors(ctx, landmarks, FACEMESH_LEFT_IRIS, {
+            color: '#06b6d4',
+            lineWidth: 1.5,
+        });
+    }
+
+    checkGaze(landmarks) {
+        // Left eye: iris center 468, corners 33 (inner) and 133 (outer)
+        const leftIris = landmarks[468];
+        const leftInner = landmarks[33];
+        const leftOuter = landmarks[133];
+        const leftOffsetX = (leftIris.x - leftInner.x) / (leftOuter.x - leftInner.x);
+
+        // Right eye: iris center 473, corners 362 (inner) and 263 (outer)
+        const rightIris = landmarks[473];
+        const rightInner = landmarks[362];
+        const rightOuter = landmarks[263];
+        const rightOffsetX = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
+
+        const lookingAwayH = (leftOffsetX < 0.35 || leftOffsetX > 0.65) &&
+                             (rightOffsetX < 0.35 || rightOffsetX > 0.65);
+
+        // Vertical check — iris Y relative to eye top/bottom
+        const leftTop = landmarks[159];
+        const leftBottom = landmarks[145];
+        const leftEyeH = Math.abs(leftBottom.y - leftTop.y);
+        const leftOffsetY = leftEyeH > 0.001
+            ? (leftIris.y - leftTop.y) / leftEyeH
+            : 0.5;
+
+        const rightTop = landmarks[386];
+        const rightBottom = landmarks[374];
+        const rightEyeH = Math.abs(rightBottom.y - rightTop.y);
+        const rightOffsetY = rightEyeH > 0.001
+            ? (rightIris.y - rightTop.y) / rightEyeH
+            : 0.5;
+
+        const lookingAwayV = (leftOffsetY < 0.2 || leftOffsetY > 0.8) &&
+                             (rightOffsetY < 0.2 || rightOffsetY > 0.8);
+
+        if (lookingAwayH || lookingAwayV) {
+            this.reportEvent('looking_away');
+        }
+    }
+
+    checkFaceChanged(landmarks) {
+        const nose = landmarks[1];
+        const leftCheek = landmarks[234];
+        const rightCheek = landmarks[454];
+        const faceWidth = Math.hypot(rightCheek.x - leftCheek.x, rightCheek.y - leftCheek.y);
+        if (faceWidth < 0.001) return;
+
+        const noseToLeft = Math.hypot(nose.x - leftCheek.x, nose.y - leftCheek.y);
+        const noseToRight = Math.hypot(nose.x - rightCheek.x, nose.y - rightCheek.y);
+        const currentLeftRatio = noseToLeft / faceWidth;
+        const currentRightRatio = noseToRight / faceWidth;
+
+        const leftDiff = Math.abs(currentLeftRatio - this.referenceLeftRatio);
+        const rightDiff = Math.abs(currentRightRatio - this.referenceRightRatio);
+
+        if (leftDiff > 0.12 || rightDiff > 0.12) {
+            this.reportEvent('face_changed');
+        }
+    }
+
+    async detectPhone() {
+        if (!this.cocoModel || !this.videoElement || !this.videoElement.videoWidth) return;
+
+        try {
+            const predictions = await this.cocoModel.detect(this.videoElement);
+            const phones = predictions.filter(p => p.class === 'cell phone' && p.score > 0.6);
+
+            if (phones.length > 0) {
+                this.reportEvent('phone_detected');
+            }
+
+            // Log secondary suspicious objects to console only
+            const secondary = predictions.filter(
+                p => (p.class === 'laptop' || p.class === 'book') && p.score > 0.6
+            );
+            if (secondary.length > 0) {
+                console.log('[Muraqib] Secondary objects detected:', secondary.map(p => p.class));
+            }
+        } catch (err) {
+            // Never crash the quiz
+        }
     }
 
     captureScreenshot() {
@@ -171,6 +267,13 @@ class AntiCheatMonitor {
     }
 
     async reportEvent(eventType) {
+        const now = Date.now();
+        const debounce = this.eventDebounce[eventType];
+        if (debounce && this.lastEventTimes[eventType] && (now - this.lastEventTimes[eventType] < debounce)) {
+            return;
+        }
+        this.lastEventTimes[eventType] = now;
+
         try {
             const screenshot = this.captureScreenshot();
             const response = await fetch(this.reportEndpoint, {
@@ -215,10 +318,12 @@ class AntiCheatMonitor {
             'tab_switch': 'warning',
         };
 
+        const longTimerTypes = ['face_changed', 'phone_detected'];
+
         if (typeof Swal !== 'undefined') {
             const message = flagged
-                ? 'Your attempt has been flagged for review.'
-                : 'This activity has been recorded. Please stay focused on your quiz.';
+                ? 'Your attempt has been flagged.'
+                : 'This has been recorded. Stay focused.';
 
             Swal.fire({
                 icon: icons[eventType] || 'warning',
@@ -227,7 +332,7 @@ class AntiCheatMonitor {
                 toast: true,
                 position: 'bottom-end',
                 showConfirmButton: false,
-                timer: 4000,
+                timer: longTimerTypes.includes(eventType) ? 6000 : 4000,
                 timerProgressBar: true,
             });
         }
@@ -249,20 +354,20 @@ class AntiCheatMonitor {
     bindAutoSubmitOnLeave() {
         this._beforeUnloadHandler = () => {
             if (!this.submitEndpoint) return;
-
-            // Use sendBeacon to submit with whatever answers exist
             const formData = new FormData(document.getElementById('quizForm'));
             navigator.sendBeacon(this.submitEndpoint, formData);
         };
-
-        // Auto-submit when page is actually unloaded (not just hidden)
         window.addEventListener('unload', this._beforeUnloadHandler);
     }
 
     destroy() {
-        if (this.intervalHandle) {
-            clearInterval(this.intervalHandle);
-            this.intervalHandle = null;
+        if (this.camera) {
+            this.camera.stop();
+            this.camera = null;
+        }
+        if (this.phoneDetectionInterval) {
+            clearInterval(this.phoneDetectionInterval);
+            this.phoneDetectionInterval = null;
         }
         if (this.stream) {
             this.stream.getTracks().forEach(track => track.stop());

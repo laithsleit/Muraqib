@@ -40,7 +40,9 @@
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('assets/js/face-api.min.js') }}"></script>
+    <script src="{{ asset('assets/mediapipe/face_mesh/face_mesh.js') }}" crossorigin="anonymous"></script>
+    <script src="{{ asset('assets/mediapipe/camera_utils/camera_utils.js') }}" crossorigin="anonymous"></script>
+    <script src="{{ asset('assets/mediapipe/drawing_utils/drawing_utils.js') }}" crossorigin="anonymous"></script>
     <script src="{{ asset('assets/js/camera-check.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -50,7 +52,6 @@
                 placeholderEl: document.getElementById('cameraPlaceholder'),
                 statusEl: document.getElementById('cameraStatus'),
                 startBtn: document.getElementById('startQuizBtn'),
-                modelUrl: '/assets/models',
             });
             checker.init();
         });
