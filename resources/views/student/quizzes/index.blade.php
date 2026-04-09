@@ -56,9 +56,6 @@
                                                 <a href="{{ route('student.attempts.take', $inProgress) }}" class="btn btn-warning btn-sm">Resume Quiz</a>
                                             @elseif($submitted)
                                                 <a href="{{ route('student.attempts.results', $submitted) }}" class="btn btn-outline-primary btn-sm">View Results</a>
-                                                @if($quiz->allow_retake)
-                                                    <a href="{{ route('student.quizzes.check', $quiz) }}" class="btn btn-primary btn-sm">Retake</a>
-                                                @endif
                                             @else
                                                 <a href="{{ route('student.quizzes.check', $quiz) }}" class="btn btn-primary btn-sm">Start Quiz</a>
                                             @endif

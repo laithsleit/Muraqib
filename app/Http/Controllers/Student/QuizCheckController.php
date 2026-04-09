@@ -36,24 +36,30 @@ class QuizCheckController extends Controller
                 ->with('error', 'You have already completed this quiz and retakes are not allowed.');
         }
 
-        $attempt = Attempt::create([
-            'quiz_id' => $quiz->id,
-            'student_id' => $student->id,
-            'started_at' => Carbon::now(),
-        ]);
-
-        return view('student.quizzes.check', compact('quiz', 'attempt'));
+        return view('student.quizzes.check', compact('quiz'));
     }
 
     public function start(Quiz $quiz)
     {
         $student = Auth::user();
+        abort_unless($quiz->is_published, 404);
+        abort_unless($quiz->subject->students()->where('student_id', $student->id)->exists(), 403);
 
-        $attempt = Attempt::where('quiz_id', $quiz->id)
+        $inProgress = Attempt::where('quiz_id', $quiz->id)
             ->where('student_id', $student->id)
             ->whereNotNull('started_at')
             ->whereNull('submitted_at')
-            ->firstOrFail();
+            ->first();
+
+        if ($inProgress) {
+            return redirect()->route('student.attempts.take', $inProgress);
+        }
+
+        $attempt = Attempt::create([
+            'quiz_id' => $quiz->id,
+            'student_id' => $student->id,
+            'started_at' => Carbon::now(),
+        ]);
 
         return redirect()->route('student.attempts.take', $attempt);
     }

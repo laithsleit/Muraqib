@@ -1,9 +1,10 @@
 class CameraCheck {
-    constructor({ videoEl, placeholderEl, statusEl, startBtn }) {
+    constructor({ videoEl, placeholderEl, statusEl, startBtn, modelUrl }) {
         this.video = videoEl;
         this.placeholder = placeholderEl;
         this.status = statusEl;
         this.startBtn = startBtn;
+        this.modelUrl = modelUrl || '/assets/models';
         this.stream = null;
         this.interval = null;
         this.modelsLoaded = false;
@@ -15,18 +16,16 @@ class CameraCheck {
         try {
             await this.startStream();
         } catch (err) {
-            console.error('Camera access failed:', err);
             this.updateStatus('no-camera', 'Camera Access Required — please allow camera access and reload the page.');
             return;
         }
 
-        this.updateStatus('loading', 'Loading face detection models...');
+        this.updateStatus('loading', 'Loading face detection...');
 
         try {
             await this.loadModels();
         } catch (err) {
-            console.error('Face model load failed:', err);
-            this.updateStatus('no-camera', 'Failed to load face detection. Please check your connection and reload.');
+            this.updateStatus('no-camera', 'Failed to load face detection. Please reload the page.');
             return;
         }
 
@@ -41,8 +40,7 @@ class CameraCheck {
     }
 
     async loadModels() {
-        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        await faceapi.nets.tinyFaceDetector.loadFromUri(this.modelUrl);
         this.modelsLoaded = true;
     }
 
@@ -85,7 +83,8 @@ class CameraCheck {
                 this.enableStartButton(true);
             }
         } catch (err) {
-            console.error('Detection error:', err);
+            this.updateStatus('no-camera', 'Face detection error. Please reload the page.');
+            this.enableStartButton(false);
         }
     }
 

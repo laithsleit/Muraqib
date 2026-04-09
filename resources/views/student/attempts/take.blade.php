@@ -5,7 +5,6 @@
     <span class="text-muted small">{{ auth()->user()->name }}</span>
 @endsection
 
-
 @section('content')
     <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;"></div>
 
@@ -13,8 +12,8 @@
         <div class="text-center">
             <i class="bi bi-camera-video-off" style="font-size: 3rem; color: var(--danger);"></i>
             <h4 class="fw-bold mt-3">Camera Access Required</h4>
-            <p class="text-muted mb-3" style="max-width: 400px;">Your browser blocked camera access. This quiz requires an active camera for monitoring. Please allow camera access or use HTTPS and reload the page.</p>
-            <a href="{{ route('student.quizzes.index', $quiz->subject) }}" class="btn btn-outline-primary">Back to Quizzes</a>
+            <p class="text-muted mb-3" style="max-width: 400px;">Your browser blocked camera access. This quiz requires an active camera for monitoring. Please allow camera access and try again.</p>
+            <a href="{{ route('student.quizzes.check', $quiz) }}" class="btn btn-primary">Back to Camera Check</a>
         </div>
     </div>
 
@@ -113,10 +112,12 @@
 
 @push('scripts')
     <script src="{{ asset('assets/js/quiz-timer.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="{{ asset('assets/js/face-api.min.js') }}"></script>
     <script src="{{ asset('assets/js/anticheat-monitor.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async function () {
+            let isSubmitting = false;
+
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 document.getElementById('monitorVideo').srcObject = stream;
@@ -140,9 +141,13 @@
                 videoElement: document.getElementById('monitorVideo'),
                 reportEndpoint: '{{ route("student.attempts.event", $attempt) }}',
                 csrfToken: '{{ csrf_token() }}',
+                modelUrl: '{{ asset("assets/models") }}',
             });
 
-            document.getElementById('quizForm').addEventListener('submit', () => monitor.destroy());
+            document.getElementById('quizForm').addEventListener('submit', function () {
+                isSubmitting = true;
+                monitor.destroy();
+            });
 
             const totalQuestions = {{ $questions->count() }};
             const progressBar = document.getElementById('progressBar');
@@ -161,8 +166,9 @@
             });
 
             window.addEventListener('beforeunload', function (e) {
+                if (isSubmitting) return;
                 e.preventDefault();
-                e.returnValue = '';
+                e.returnValue = 'Your quiz is still in progress. If you leave, your answers may not be saved.';
             });
         });
     </script>

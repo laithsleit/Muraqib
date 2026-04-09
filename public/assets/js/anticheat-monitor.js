@@ -7,6 +7,7 @@ class AntiCheatMonitor {
         this.screenshotQuality = 0.5;
         this.reportEndpoint = '';
         this.csrfToken = '';
+        this.modelUrl = '/assets/models';
         this.lastTabSwitchAt = 0;
         this.intervalHandle = null;
         this.stream = null;
@@ -21,9 +22,10 @@ class AntiCheatMonitor {
         if (config.detectionInterval) this.detectionInterval = config.detectionInterval;
         if (config.tabSwitchDebounce) this.tabSwitchDebounce = config.tabSwitchDebounce;
         if (config.screenshotQuality) this.screenshotQuality = config.screenshotQuality;
+        if (config.modelUrl) this.modelUrl = config.modelUrl;
 
         this.startCamera();
-        this.startDetection();
+        this.loadAndStartDetection();
         this.bindTabSwitch();
     }
 
@@ -37,7 +39,13 @@ class AntiCheatMonitor {
         }
     }
 
-    startDetection() {
+    async loadAndStartDetection() {
+        try {
+            if (typeof faceapi !== 'undefined') {
+                await faceapi.nets.tinyFaceDetector.loadFromUri(this.modelUrl);
+            }
+        } catch (err) {
+        }
         this.intervalHandle = setInterval(() => this.detect(), this.detectionInterval);
     }
 
