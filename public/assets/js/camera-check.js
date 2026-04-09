@@ -134,7 +134,27 @@ class CameraCheck {
             }
 
             if (results.multiFaceLandmarks.length === 1) {
-                window.muraqibReferenceLandmarks = results.multiFaceLandmarks[0];
+                const lm = results.multiFaceLandmarks[0];
+                window.muraqibReferenceLandmarks = lm;
+
+                // Capture baseline gaze — what "looking at screen" looks like
+                // for this user on this screen at this distance
+                if (lm.length >= 478) {
+                    const leftIris = lm[468], leftInner = lm[33], leftOuter = lm[133];
+                    const rightIris = lm[473], rightInner = lm[362], rightOuter = lm[263];
+                    const leftTop = lm[159], leftBottom = lm[145];
+                    const rightTop = lm[386], rightBottom = lm[374];
+
+                    const lx = (leftIris.x - leftInner.x) / (leftOuter.x - leftInner.x);
+                    const rx = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
+                    const leftEyeH = Math.abs(leftBottom.y - leftTop.y);
+                    const rightEyeH = Math.abs(rightBottom.y - rightTop.y);
+                    const ly = leftEyeH > 0.001 ? (leftIris.y - leftTop.y) / leftEyeH : 0.5;
+                    const ry = rightEyeH > 0.001 ? (rightIris.y - rightTop.y) / rightEyeH : 0.5;
+
+                    window.muraqibReferenceGaze = { lx, rx, ly, ry };
+                }
+
                 this.updateStatus('ok', 'Camera check passed — face registered');
                 this.enableStartButton(true);
             } else {

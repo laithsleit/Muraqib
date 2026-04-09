@@ -72,7 +72,6 @@ class DemoSeeder extends Seeder
                 'description' => 'Test your knowledge of HTML elements, attributes, and CSS selectors.',
                 'duration_minutes' => 15,
                 'is_published' => true,
-                'allow_retake' => true,
                 'score_threshold' => config('anticheat.default_threshold'),
             ]
         );
@@ -131,7 +130,6 @@ class DemoSeeder extends Seeder
                 'description' => 'Variables, data types, functions, and DOM manipulation basics.',
                 'duration_minutes' => 20,
                 'is_published' => true,
-                'allow_retake' => false,
                 'score_threshold' => 50,
             ]
         );
@@ -181,7 +179,6 @@ class DemoSeeder extends Seeder
                 'description' => 'Routing, Blade templating, Eloquent ORM, and middleware.',
                 'duration_minutes' => 25,
                 'is_published' => false,
-                'allow_retake' => false,
                 'score_threshold' => 40,
             ]
         );
@@ -224,7 +221,6 @@ class DemoSeeder extends Seeder
                 'description' => 'SELECT statements, JOINs, WHERE clauses, and aggregate functions.',
                 'duration_minutes' => 20,
                 'is_published' => true,
-                'allow_retake' => true,
                 'score_threshold' => config('anticheat.default_threshold'),
             ]
         );
@@ -285,7 +281,6 @@ class DemoSeeder extends Seeder
                 'description' => 'TCP/IP model, HTTP, DNS, and transport layer protocols.',
                 'duration_minutes' => 15,
                 'is_published' => true,
-                'allow_retake' => false,
                 'score_threshold' => 45,
             ]
         );

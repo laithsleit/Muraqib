@@ -17,7 +17,6 @@ class StoreQuizRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'duration_minutes' => ['required', 'integer', 'min:1', 'max:300'],
-            'allow_retake' => ['nullable', 'boolean'],
             'is_published' => ['nullable', 'boolean'],
             'score_threshold' => ['required', 'integer', 'min:1'],
         ];

@@ -32,9 +32,9 @@ class QuizCheckController extends Controller
             ->whereNotNull('submitted_at')
             ->exists();
 
-        if ($submitted && ! $quiz->allow_retake) {
+        if ($submitted) {
             return redirect()->route('student.quizzes.index', $quiz->subject)
-                ->with('error', 'You have already completed this quiz and retakes are not allowed.');
+                ->with('error', 'You have already completed this quiz.');
         }
 
         return view('student.quizzes.check', compact('quiz'));

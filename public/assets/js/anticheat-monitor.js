@@ -12,6 +12,10 @@ class AntiCheatMonitor {
         this.referenceNoseRatio = null;
         this.referenceLeftRatio = null;
         this.referenceRightRatio = null;
+        this.baselineGaze = null;
+        // Tolerance from baseline before "looking away" fires
+        this.gazeTolH = 0.28;
+        this.gazeTolV = 0.50;
         this.reportEndpoint = '';
         this.csrfToken = '';
         this.submitEndpoint = '';
@@ -24,12 +28,13 @@ class AntiCheatMonitor {
 
         this.lastEventTimes = {};
         this.eventDebounce = {
-            face_missing: 5000,
+            face_missing: 10000,
             multiple_faces: 5000,
-            looking_away: 8000,
+            looking_away: 10000,
             face_changed: 10000,
-            phone_detected: 15000,
+            phone_detected: 5000,
         };
+        this._phoneBoxes = [];
     }
 
     init(config) {
@@ -64,6 +69,11 @@ class AntiCheatMonitor {
         this.referenceLeftRatio = noseToLeft / faceWidth;
         this.referenceRightRatio = noseToRight / faceWidth;
         this.referenceNoseRatio = (nose.x - leftCheek.x) / (rightCheek.x - leftCheek.x);
+
+        // Load baseline gaze captured on the check page
+        if (window.muraqibReferenceGaze) {
+            this.baselineGaze = window.muraqibReferenceGaze;
+        }
     }
 
     async _startDetection() {
@@ -126,12 +136,12 @@ class AntiCheatMonitor {
             this.cocoModel = await cocoSsd.load({
                 modelUrl: '/assets/models/coco-ssd/model.json',
             });
-            this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 5000);
+            this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 3000);
         } catch (err) {
             // Phone detection runs best-effort; try CDN fallback
             try {
                 this.cocoModel = await cocoSsd.load();
-                this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 5000);
+                this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 3000);
             } catch (e) {
                 // No phone detection available
             }
@@ -148,6 +158,12 @@ class AntiCheatMonitor {
 
         const faces = results.multiFaceLandmarks || [];
 
+        // Always draw everything BEFORE reporting so screenshots include overlays
+        for (const lm of faces) {
+            this.drawFaceMesh(ctx, lm);
+        }
+        this.drawPhoneBoxes(ctx);
+
         if (faces.length === 0) {
             this.reportEvent('face_missing');
             return;
@@ -155,16 +171,11 @@ class AntiCheatMonitor {
 
         if (faces.length > 1) {
             this.reportEvent('multiple_faces');
-            // Still draw all faces
-            for (const landmarks of faces) {
-                this.drawFaceMesh(ctx, landmarks);
-            }
             return;
         }
 
         // Exactly one face
         const landmarks = faces[0];
-        this.drawFaceMesh(ctx, landmarks);
 
         // Looking away — iris-based gaze estimation
         if (landmarks.length >= 478) {
@@ -197,41 +208,56 @@ class AntiCheatMonitor {
     }
 
     checkGaze(landmarks) {
-        // Left eye: iris center 468, corners 33 (inner) and 133 (outer)
-        const leftIris = landmarks[468];
-        const leftInner = landmarks[33];
-        const leftOuter = landmarks[133];
-        const leftOffsetX = (leftIris.x - leftInner.x) / (leftOuter.x - leftInner.x);
+        // Compute current iris offsets
+        const leftIris = landmarks[468], leftInner = landmarks[33], leftOuter = landmarks[133];
+        const rightIris = landmarks[473], rightInner = landmarks[362], rightOuter = landmarks[263];
+        const lx = (leftIris.x - leftInner.x) / (leftOuter.x - leftInner.x);
+        const rx = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
 
-        // Right eye: iris center 473, corners 362 (inner) and 263 (outer)
-        const rightIris = landmarks[473];
-        const rightInner = landmarks[362];
-        const rightOuter = landmarks[263];
-        const rightOffsetX = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
-
-        const lookingAwayH = (leftOffsetX < 0.35 || leftOffsetX > 0.65) &&
-                             (rightOffsetX < 0.35 || rightOffsetX > 0.65);
-
-        // Vertical check — iris Y relative to eye top/bottom
-        const leftTop = landmarks[159];
-        const leftBottom = landmarks[145];
+        const leftTop = landmarks[159], leftBottom = landmarks[145];
+        const rightTop = landmarks[386], rightBottom = landmarks[374];
         const leftEyeH = Math.abs(leftBottom.y - leftTop.y);
-        const leftOffsetY = leftEyeH > 0.001
-            ? (leftIris.y - leftTop.y) / leftEyeH
-            : 0.5;
-
-        const rightTop = landmarks[386];
-        const rightBottom = landmarks[374];
         const rightEyeH = Math.abs(rightBottom.y - rightTop.y);
-        const rightOffsetY = rightEyeH > 0.001
-            ? (rightIris.y - rightTop.y) / rightEyeH
-            : 0.5;
+        const ly = leftEyeH > 0.001 ? (leftIris.y - leftTop.y) / leftEyeH : 0.5;
+        const ry = rightEyeH > 0.001 ? (rightIris.y - rightTop.y) / rightEyeH : 0.5;
 
-        const lookingAwayV = (leftOffsetY < 0.2 || leftOffsetY > 0.8) &&
-                             (rightOffsetY < 0.2 || rightOffsetY > 0.8);
+        // Debug: log gaze values every 2 seconds (throttled)
+        const now = Date.now();
+        if (!this._lastGazeLog || now - this._lastGazeLog > 2000) {
+            this._lastGazeLog = now;
+            if (this.baselineGaze) {
+                const dLx = Math.abs(lx - this.baselineGaze.lx);
+                const dRx = Math.abs(rx - this.baselineGaze.rx);
+                const dLy = Math.abs(ly - this.baselineGaze.ly);
+                const dRy = Math.abs(ry - this.baselineGaze.ry);
+                console.log(`[Muraqib Gaze] H: dL=${dLx.toFixed(3)} dR=${dRx.toFixed(3)} (tol=${this.gazeTolH}) | V: dL=${dLy.toFixed(3)} dR=${dRy.toFixed(3)} (tol=${this.gazeTolV}) | baseline: lx=${this.baselineGaze.lx.toFixed(3)} ly=${this.baselineGaze.ly.toFixed(3)} | now: lx=${lx.toFixed(3)} ly=${ly.toFixed(3)}`);
+            } else {
+                console.log(`[Muraqib Gaze] No baseline | lx=${lx.toFixed(3)} rx=${rx.toFixed(3)} ly=${ly.toFixed(3)} ry=${ry.toFixed(3)}`);
+            }
+        }
 
-        if (lookingAwayH || lookingAwayV) {
-            this.reportEvent('looking_away');
+        if (this.baselineGaze) {
+            // Compare against personal baseline captured on check page
+            const dLx = Math.abs(lx - this.baselineGaze.lx);
+            const dRx = Math.abs(rx - this.baselineGaze.rx);
+            const dLy = Math.abs(ly - this.baselineGaze.ly);
+            const dRy = Math.abs(ry - this.baselineGaze.ry);
+
+            const awayH = dLx > this.gazeTolH && dRx > this.gazeTolH;
+            const awayV = dLy > this.gazeTolV && dRy > this.gazeTolV;
+
+            if (awayH || awayV) {
+                console.log(`[Muraqib Gaze] TRIGGERED: ${awayH ? 'horizontal' : 'vertical'}`);
+                this.reportEvent('looking_away');
+            }
+        } else {
+            // No baseline available — fall back to absolute thresholds
+            const awayH = (lx < 0.20 || lx > 0.80) && (rx < 0.20 || rx > 0.80);
+            const awayV = (ly < 0.10 || ly > 0.90) && (ry < 0.10 || ry > 0.90);
+            if (awayH || awayV) {
+                console.log(`[Muraqib Gaze] TRIGGERED (no baseline): lx=${lx.toFixed(3)} ly=${ly.toFixed(3)}`);
+                this.reportEvent('looking_away');
+            }
         }
     }
 
@@ -260,10 +286,43 @@ class AntiCheatMonitor {
 
         try {
             const predictions = await this.cocoModel.detect(this.videoElement);
-            const phones = predictions.filter(p => p.class === 'cell phone' && p.score > 0.6);
+            // "cell phone" and "remote" — COCO-SSD often classifies phones as remotes
+            const phones = predictions.filter(
+                p => (p.class === 'cell phone' || p.class === 'remote') && p.score > 0.4
+            );
+
+            // Store phone bounding boxes for drawing on next face result frame
+            const vw = this.videoElement.clientWidth;
+            const vh = this.videoElement.clientHeight;
+            const vidW = this.videoElement.videoWidth;
+            const vidH = this.videoElement.videoHeight;
+            // Store both display-scaled and native-resolution boxes
+            this._phoneBoxes = phones.map(p => ({
+                x: p.bbox[0] * (vw / vidW),
+                y: p.bbox[1] * (vh / vidH),
+                w: p.bbox[2] * (vw / vidW),
+                h: p.bbox[3] * (vh / vidH),
+                score: p.score,
+                label: p.class,
+            }));
+            this._phoneBoxesNative = phones.map(p => ({
+                x: p.bbox[0],
+                y: p.bbox[1],
+                w: p.bbox[2],
+                h: p.bbox[3],
+                score: p.score,
+                label: p.class,
+            }));
 
             if (phones.length > 0) {
+                // Draw boxes onto canvas NOW so the screenshot captures them
+                const ctx = this.canvasElement.getContext('2d');
+                this.drawPhoneBoxes(ctx);
                 this.reportEvent('phone_detected');
+                // Clear boxes after 3 seconds so they don't persist forever
+                setTimeout(() => { this._phoneBoxes = []; }, 3000);
+            } else {
+                this._phoneBoxes = [];
             }
 
             // Log secondary suspicious objects to console only
@@ -278,13 +337,54 @@ class AntiCheatMonitor {
         }
     }
 
+    drawPhoneBoxes(ctx) {
+        for (const box of this._phoneBoxes) {
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 3]);
+            ctx.strokeRect(box.x, box.y, box.w, box.h);
+            ctx.setLineDash([]);
+
+            const label = (box.label === 'remote' ? 'Phone/Remote' : 'Phone')
+                + ' ' + Math.round(box.score * 100) + '%';
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.7)';
+            ctx.font = 'bold 11px sans-serif';
+            const tw = ctx.measureText(label).width;
+            ctx.fillRect(box.x, box.y - 16, tw + 8, 16);
+            ctx.fillStyle = '#fff';
+            ctx.fillText(label, box.x + 4, box.y - 4);
+        }
+    }
+
     captureScreenshot() {
         try {
             const canvas = document.createElement('canvas');
             canvas.width = this.videoElement.videoWidth;
             canvas.height = this.videoElement.videoHeight;
             const ctx = canvas.getContext('2d');
+            // Draw video frame
             ctx.drawImage(this.videoElement, 0, 0);
+            // Draw the mesh/detection overlay on top so reviewers can see it
+            ctx.drawImage(this.canvasElement, 0, 0, canvas.width, canvas.height);
+            // Draw phone boxes at native resolution for clear visibility
+            if (this._phoneBoxesNative && this._phoneBoxesNative.length > 0) {
+                for (const box of this._phoneBoxesNative) {
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([8, 4]);
+                    ctx.strokeRect(box.x, box.y, box.w, box.h);
+                    ctx.setLineDash([]);
+
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+                    ctx.font = 'bold 16px sans-serif';
+                    const label = (box.label === 'remote' ? 'Phone/Remote' : 'Phone')
+                        + ' ' + Math.round(box.score * 100) + '%';
+                    const tw = ctx.measureText(label).width;
+                    ctx.fillRect(box.x, box.y - 22, tw + 10, 22);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(label, box.x + 5, box.y - 5);
+                }
+            }
             return canvas.toDataURL('image/jpeg', this.screenshotQuality);
         } catch (err) {
             return null;
