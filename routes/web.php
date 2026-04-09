@@ -3,6 +3,12 @@
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
+use App\Http\Controllers\Teacher\OptionController;
+use App\Http\Controllers\Teacher\QuestionController;
+use App\Http\Controllers\Teacher\QuizController;
+use App\Http\Controllers\Teacher\SubjectController;
+use App\Http\Controllers\Teacher\SubjectStudentController;
 use Illuminate\Support\Facades\Route;
 
 // Landing page
@@ -39,13 +45,42 @@ Route::middleware('auth')->group(function () {
 
     // Teacher routes
     Route::prefix('teacher')->middleware('role:teacher')->group(function () {
-        Route::get('/dashboard', function () {
-            return view('teacher.dashboard');
-        })->name('teacher.dashboard');
+        Route::get('/dashboard', TeacherDashboardController::class)->name('teacher.dashboard');
 
-        Route::get('/subjects', function () {
-            return view('teacher.subjects.index');
-        })->name('teacher.subjects.index');
+        // Subjects
+        Route::get('/subjects', [SubjectController::class, 'index'])->name('teacher.subjects.index');
+        Route::get('/subjects/create', [SubjectController::class, 'create'])->name('teacher.subjects.create');
+        Route::post('/subjects', [SubjectController::class, 'store'])->name('teacher.subjects.store');
+        Route::get('/subjects/{subject}/edit', [SubjectController::class, 'edit'])->name('teacher.subjects.edit');
+        Route::put('/subjects/{subject}', [SubjectController::class, 'update'])->name('teacher.subjects.update');
+        Route::delete('/subjects/{subject}', [SubjectController::class, 'destroy'])->name('teacher.subjects.destroy');
+
+        // Subject Students
+        Route::get('/subjects/{subject}/students', [SubjectStudentController::class, 'index'])->name('teacher.subjects.students');
+        Route::post('/subjects/{subject}/students/{student}/enroll', [SubjectStudentController::class, 'enroll'])->name('teacher.subjects.students.enroll');
+        Route::post('/subjects/{subject}/students/{student}/unenroll', [SubjectStudentController::class, 'unenroll'])->name('teacher.subjects.students.unenroll');
+
+        // Quizzes
+        Route::get('/subjects/{subject}/quizzes', [QuizController::class, 'index'])->name('teacher.quizzes.index');
+        Route::get('/subjects/{subject}/quizzes/create', [QuizController::class, 'create'])->name('teacher.quizzes.create');
+        Route::post('/subjects/{subject}/quizzes', [QuizController::class, 'store'])->name('teacher.quizzes.store');
+        Route::get('/subjects/{subject}/quizzes/{quiz}/edit', [QuizController::class, 'edit'])->name('teacher.quizzes.edit');
+        Route::put('/subjects/{subject}/quizzes/{quiz}', [QuizController::class, 'update'])->name('teacher.quizzes.update');
+        Route::post('/subjects/{subject}/quizzes/{quiz}/toggle-publish', [QuizController::class, 'togglePublish'])->name('teacher.quizzes.togglePublish');
+        Route::delete('/subjects/{subject}/quizzes/{quiz}', [QuizController::class, 'destroy'])->name('teacher.quizzes.destroy');
+
+        // Questions
+        Route::get('/quizzes/{quiz}/questions', [QuestionController::class, 'index'])->name('teacher.questions.index');
+        Route::post('/quizzes/{quiz}/questions', [QuestionController::class, 'store'])->name('teacher.questions.store');
+        Route::put('/questions/{question}', [QuestionController::class, 'update'])->name('teacher.questions.update');
+        Route::delete('/questions/{question}', [QuestionController::class, 'destroy'])->name('teacher.questions.destroy');
+        Route::post('/questions/{question}/move-up', [QuestionController::class, 'moveUp'])->name('teacher.questions.moveUp');
+        Route::post('/questions/{question}/move-down', [QuestionController::class, 'moveDown'])->name('teacher.questions.moveDown');
+
+        // Options
+        Route::post('/questions/{question}/options', [OptionController::class, 'store'])->name('teacher.options.store');
+        Route::put('/options/{option}', [OptionController::class, 'update'])->name('teacher.options.update');
+        Route::delete('/options/{option}', [OptionController::class, 'destroy'])->name('teacher.options.destroy');
 
         Route::get('/anticheat-guide', function () {
             return view('teacher.anticheat-guide');
