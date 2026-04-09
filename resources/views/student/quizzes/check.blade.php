@@ -11,8 +11,9 @@
             <h4 class="fw-bold mb-1">{{ $quiz->title }}</h4>
             <p class="text-muted mb-4">Duration: {{ $quiz->duration_minutes }} minutes</p>
 
-            <div class="camera-preview-box mx-auto mb-3">
+            <div class="camera-preview-box mx-auto mb-3" style="position: relative;">
                 <video id="cameraVideo" autoplay muted playsinline></video>
+                <canvas id="cameraCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
                 <div id="cameraPlaceholder" class="camera-placeholder">
                     <i class="bi bi-camera-video fs-1 text-muted"></i>
                     <p class="text-muted small mt-2 mb-0">Initializing camera...</p>
@@ -45,6 +46,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             const checker = new CameraCheck({
                 videoEl: document.getElementById('cameraVideo'),
+                canvasEl: document.getElementById('cameraCanvas'),
                 placeholderEl: document.getElementById('cameraPlaceholder'),
                 statusEl: document.getElementById('cameraStatus'),
                 startBtn: document.getElementById('startQuizBtn'),

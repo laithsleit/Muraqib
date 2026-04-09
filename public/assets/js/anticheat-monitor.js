@@ -1,84 +1,144 @@
+// Real-time anti-cheat monitoring with face recognition and landmark tracking
+
 class AntiCheatMonitor {
     constructor() {
         this.attemptId = null;
         this.videoElement = null;
+        this.canvasElement = null;
         this.detectionInterval = 3000;
         this.tabSwitchDebounce = 2000;
         this.screenshotQuality = 0.5;
+        this.faceMatchThreshold = 0.55;
         this.reportEndpoint = '';
         this.csrfToken = '';
         this.modelUrl = '/assets/models';
+        this.submitEndpoint = '';
+        this.resultsEndpoint = '';
         this.lastTabSwitchAt = 0;
         this.intervalHandle = null;
         this.stream = null;
+        this.referenceFace = null;
+        this.modelsLoaded = false;
     }
 
     init(config) {
         this.attemptId = config.attemptId;
         this.videoElement = config.videoElement;
+        this.canvasElement = config.canvasElement;
         this.reportEndpoint = config.reportEndpoint;
         this.csrfToken = config.csrfToken;
+        this.submitEndpoint = config.submitEndpoint;
+        this.resultsEndpoint = config.resultsEndpoint;
 
         if (config.detectionInterval) this.detectionInterval = config.detectionInterval;
         if (config.tabSwitchDebounce) this.tabSwitchDebounce = config.tabSwitchDebounce;
         if (config.screenshotQuality) this.screenshotQuality = config.screenshotQuality;
+        if (config.faceMatchThreshold) this.faceMatchThreshold = config.faceMatchThreshold;
         if (config.modelUrl) this.modelUrl = config.modelUrl;
 
-        this.startCamera();
+        this.loadReferenceFace();
         this.loadAndStartDetection();
         this.bindTabSwitch();
+        this.bindAutoSubmitOnLeave();
     }
 
-    async startCamera() {
+    loadReferenceFace() {
         try {
-            this.stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            if (this.videoElement) {
-                this.videoElement.srcObject = this.stream;
+            const stored = localStorage.getItem('muraqib_face_descriptor');
+            if (stored) {
+                this.referenceFace = new Float32Array(JSON.parse(stored));
             }
         } catch (err) {
+            this.referenceFace = null;
         }
     }
 
     async loadAndStartDetection() {
         try {
             if (typeof faceapi !== 'undefined') {
-                await faceapi.nets.tinyFaceDetector.loadFromUri(this.modelUrl);
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(this.modelUrl),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(this.modelUrl),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(this.modelUrl),
+                ]);
+                this.modelsLoaded = true;
             }
         } catch (err) {
+            // Detection runs best-effort
         }
         this.intervalHandle = setInterval(() => this.detect(), this.detectionInterval);
     }
 
     async detect() {
-        if (!this.videoElement || !this.videoElement.videoWidth) return;
-        if (typeof faceapi === 'undefined') return;
+        if (!this.videoElement || !this.videoElement.videoWidth || !this.modelsLoaded) return;
 
         try {
-            const detections = await faceapi.detectAllFaces(
-                this.videoElement,
-                new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
-            );
+            const detections = await faceapi
+                .detectAllFaces(this.videoElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                .withFaceLandmarks()
+                .withFaceDescriptors();
+
+            this.drawOverlay(detections);
 
             if (detections.length === 0) {
                 this.reportEvent('face_missing');
-            } else if (detections.length > 1) {
+                return;
+            }
+
+            if (detections.length > 1) {
                 this.reportEvent('multiple_faces');
-            } else {
-                const box = detections[0].box;
-                const centerX = box.x + box.width / 2;
-                const centerY = box.y + box.height / 2;
-                const videoW = this.videoElement.videoWidth;
-                const videoH = this.videoElement.videoHeight;
+                return;
+            }
 
-                const xRatio = centerX / videoW;
-                const yRatio = centerY / videoH;
+            const detection = detections[0];
 
-                if (xRatio < 0.2 || xRatio > 0.8 || yRatio < 0.1 || yRatio > 0.9) {
-                    this.reportEvent('looking_away');
+            // Face recognition — compare against reference
+            if (this.referenceFace) {
+                const distance = faceapi.euclideanDistance(detection.descriptor, this.referenceFace);
+                if (distance > this.faceMatchThreshold) {
+                    this.reportEvent('face_changed');
+                    return;
                 }
             }
+
+            // Head direction from landmarks — check nose and eye positions
+            const landmarks = detection.landmarks;
+            const nose = landmarks.getNose();
+            const leftEye = landmarks.getLeftEye();
+            const rightEye = landmarks.getRightEye();
+
+            const noseX = nose[3].x;
+            const eyeCenterX = (leftEye[0].x + rightEye[3].x) / 2;
+            const faceWidth = detection.detection.box.width;
+
+            // Horizontal offset of nose from eye center relative to face width
+            const horizontalRatio = (noseX - eyeCenterX) / faceWidth;
+            // Vertical: if nose tip is too high or low relative to eye line
+            const eyeY = (leftEye[0].y + rightEye[3].y) / 2;
+            const noseY = nose[6].y;
+            const verticalRatio = (noseY - eyeY) / detection.detection.box.height;
+
+            if (Math.abs(horizontalRatio) > 0.15 || verticalRatio < 0.1 || verticalRatio > 0.45) {
+                this.reportEvent('looking_away');
+            }
         } catch (err) {
+            // Never crash the quiz
         }
+    }
+
+    drawOverlay(detections) {
+        if (!this.canvasElement) return;
+        const ctx = this.canvasElement.getContext('2d');
+        ctx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
+
+        if (detections.length === 0) return;
+
+        const dims = {
+            width: this.canvasElement.width,
+            height: this.canvasElement.height,
+        };
+        const resized = faceapi.resizeResults(detections, dims);
+        faceapi.draw.drawFaceLandmarks(this.canvasElement, resized);
     }
 
     captureScreenshot() {
@@ -113,16 +173,52 @@ class AntiCheatMonitor {
 
             if (response.ok) {
                 const data = await response.json();
-                if (data.flagged) {
-                    this.showFlaggedToast();
-                }
+                this.showEventAlert(eventType, data.flagged);
             }
         } catch (err) {
+            // Fail silently
+        }
+    }
+
+    showEventAlert(eventType, flagged) {
+        const labels = {
+            'face_missing': 'Face Not Detected',
+            'multiple_faces': 'Multiple Faces Detected',
+            'looking_away': 'Looking Away',
+            'face_changed': 'Different Face Detected',
+            'phone_detected': 'Phone Detected',
+            'tab_switch': 'Tab Switch Detected',
+        };
+
+        const icons = {
+            'face_missing': 'warning',
+            'multiple_faces': 'error',
+            'looking_away': 'info',
+            'face_changed': 'error',
+            'phone_detected': 'error',
+            'tab_switch': 'warning',
+        };
+
+        if (typeof Swal !== 'undefined') {
+            const message = flagged
+                ? 'Your attempt has been flagged for review.'
+                : 'This activity has been recorded. Please stay focused on your quiz.';
+
+            Swal.fire({
+                icon: icons[eventType] || 'warning',
+                title: labels[eventType] || eventType,
+                text: message,
+                toast: true,
+                position: 'bottom-end',
+                showConfirmButton: false,
+                timer: 4000,
+                timerProgressBar: true,
+            });
         }
     }
 
     bindTabSwitch() {
-        document.addEventListener('visibilitychange', () => {
+        this._tabSwitchHandler = () => {
             if (document.hidden) {
                 const now = Date.now();
                 if (now - this.lastTabSwitchAt >= this.tabSwitchDebounce) {
@@ -130,26 +226,21 @@ class AntiCheatMonitor {
                     this.reportEvent('tab_switch');
                 }
             }
-        });
+        };
+        document.addEventListener('visibilitychange', this._tabSwitchHandler);
     }
 
-    showFlaggedToast() {
-        const container = document.getElementById('toast-container');
-        if (!container) return;
+    bindAutoSubmitOnLeave() {
+        this._beforeUnloadHandler = () => {
+            if (!this.submitEndpoint) return;
 
-        const toast = document.createElement('div');
-        toast.className = 'toast align-items-center text-bg-warning border-0 show';
-        toast.setAttribute('role', 'alert');
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="bi bi-exclamation-triangle me-1"></i>
-                    Your attempt has been flagged for review.
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>`;
-        container.appendChild(toast);
-        new bootstrap.Toast(toast, { delay: 5000 }).show();
+            // Use sendBeacon to submit with whatever answers exist
+            const formData = new FormData(document.getElementById('quizForm'));
+            navigator.sendBeacon(this.submitEndpoint, formData);
+        };
+
+        // Auto-submit when page is actually unloaded (not just hidden)
+        window.addEventListener('unload', this._beforeUnloadHandler);
     }
 
     destroy() {
@@ -160,6 +251,12 @@ class AntiCheatMonitor {
         if (this.stream) {
             this.stream.getTracks().forEach(track => track.stop());
             this.stream = null;
+        }
+        if (this._tabSwitchHandler) {
+            document.removeEventListener('visibilitychange', this._tabSwitchHandler);
+        }
+        if (this._beforeUnloadHandler) {
+            window.removeEventListener('unload', this._beforeUnloadHandler);
         }
     }
 }

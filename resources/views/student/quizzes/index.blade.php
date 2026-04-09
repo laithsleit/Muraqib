@@ -52,9 +52,7 @@
                                     </td>
                                     <td>
                                         <div class="d-flex gap-1">
-                                            @if($inProgress)
-                                                <a href="{{ route('student.attempts.take', $inProgress) }}" class="btn btn-warning btn-sm">Resume Quiz</a>
-                                            @elseif($submitted)
+                                            @if($submitted)
                                                 <a href="{{ route('student.attempts.results', $submitted) }}" class="btn btn-outline-primary btn-sm">View Results</a>
                                             @else
                                                 <a href="{{ route('student.quizzes.check', $quiz) }}" class="btn btn-primary btn-sm">Start Quiz</a>

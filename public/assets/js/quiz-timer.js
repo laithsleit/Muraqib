@@ -1,3 +1,5 @@
+// Countdown timer with auto-submit on expiry
+
 class QuizTimer {
     constructor({ endTimestamp, displayEl, formEl }) {
         this.endTime = endTimestamp;
@@ -46,6 +48,17 @@ class QuizTimer {
         this.display.textContent = '00:00';
         this.display.classList.add('text-danger');
 
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'info',
+                title: 'Time is up!',
+                text: 'Your quiz is being submitted automatically.',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+            });
+        }
+
+        window._muraqibSubmitting = true;
         this.form.submit();
     }
 }

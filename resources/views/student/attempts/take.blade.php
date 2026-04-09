@@ -5,14 +5,16 @@
     <span class="text-muted small">{{ auth()->user()->name }}</span>
 @endsection
 
-@section('content')
-    <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;"></div>
+@push('head')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+@endpush
 
+@section('content')
     <div id="cameraBlockOverlay" class="camera-block-overlay" style="display: none;">
         <div class="text-center">
             <i class="bi bi-camera-video-off" style="font-size: 3rem; color: var(--danger);"></i>
             <h4 class="fw-bold mt-3">Camera Access Required</h4>
-            <p class="text-muted mb-3" style="max-width: 400px;">Your browser blocked camera access. This quiz requires an active camera for monitoring. Please allow camera access and try again.</p>
+            <p class="text-muted mb-3" style="max-width: 400px;">Your browser blocked camera access. This quiz requires an active camera for monitoring.</p>
             <a href="{{ route('student.quizzes.check', $quiz) }}" class="btn btn-primary">Back to Camera Check</a>
         </div>
     </div>
@@ -98,8 +100,11 @@
 
                 <div class="card mb-3">
                     <div class="card-body p-2 text-center">
-                        <video id="monitorVideo" autoplay muted playsinline style="width: 100%; max-width: 200px; border-radius: 8px; display: block; margin: 0 auto;"></video>
-                        <div class="d-flex align-items-center justify-content-center gap-1 mt-2" id="monitorStatus">
+                        <div style="position: relative; display: inline-block;">
+                            <video id="monitorVideo" autoplay muted playsinline style="width: 200px; border-radius: 8px; display: block;"></video>
+                            <canvas id="monitorCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-center gap-1 mt-2">
                             <span class="d-inline-block rounded-circle" style="width: 8px; height: 8px; background: var(--success);"></span>
                             <span class="text-muted small">Monitoring Active</span>
                         </div>
@@ -111,25 +116,31 @@
 @endsection
 
 @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('assets/js/quiz-timer.js') }}"></script>
     <script src="{{ asset('assets/js/face-api.min.js') }}"></script>
     <script src="{{ asset('assets/js/anticheat-monitor.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async function () {
-            let isSubmitting = false;
+            window._muraqibSubmitting = false;
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                document.getElementById('monitorVideo').srcObject = stream;
+                const video = document.getElementById('monitorVideo');
+                video.srcObject = stream;
+
+                await new Promise(resolve => { video.onloadedmetadata = resolve; });
+                const canvas = document.getElementById('monitorCanvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
             } catch (err) {
                 document.getElementById('cameraBlockOverlay').style.display = 'flex';
                 document.getElementById('quizContent').style.display = 'none';
                 return;
             }
 
-            const endTime = {{ $endTime->timestamp }};
             const timer = new QuizTimer({
-                endTimestamp: endTime,
+                endTimestamp: {{ $endTime->timestamp }},
                 displayEl: document.getElementById('timerDisplay'),
                 formEl: document.getElementById('quizForm'),
             });
@@ -139,13 +150,15 @@
             monitor.init({
                 attemptId: {{ $attempt->id }},
                 videoElement: document.getElementById('monitorVideo'),
+                canvasElement: document.getElementById('monitorCanvas'),
                 reportEndpoint: '{{ route("student.attempts.event", $attempt) }}',
+                submitEndpoint: '{{ route("student.attempts.submit", $attempt) }}',
                 csrfToken: '{{ csrf_token() }}',
                 modelUrl: '{{ asset("assets/models") }}',
             });
 
             document.getElementById('quizForm').addEventListener('submit', function () {
-                isSubmitting = true;
+                window._muraqibSubmitting = true;
                 monitor.destroy();
             });
 
@@ -166,9 +179,9 @@
             });
 
             window.addEventListener('beforeunload', function (e) {
-                if (isSubmitting) return;
+                if (window._muraqibSubmitting) return;
                 e.preventDefault();
-                e.returnValue = 'Your quiz is still in progress. If you leave, your answers may not be saved.';
+                e.returnValue = 'Your quiz is still in progress. Leaving will submit your current answers.';
             });
         });
     </script>
