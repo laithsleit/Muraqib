@@ -14,8 +14,8 @@ class AntiCheatMonitor {
         this.referenceRightRatio = null;
         this.baselineGaze = null;
         // Tolerance from baseline before "looking away" fires
-        this.gazeTolH = 0.28;
-        this.gazeTolV = 0.50;
+        this.gazeTolH = 0.24;
+        this.gazeTolV = 0.42;
         this.reportEndpoint = '';
         this.csrfToken = '';
         this.submitEndpoint = '';
@@ -221,23 +221,7 @@ class AntiCheatMonitor {
         const ly = leftEyeH > 0.001 ? (leftIris.y - leftTop.y) / leftEyeH : 0.5;
         const ry = rightEyeH > 0.001 ? (rightIris.y - rightTop.y) / rightEyeH : 0.5;
 
-        // Debug: log gaze values every 2 seconds (throttled)
-        const now = Date.now();
-        if (!this._lastGazeLog || now - this._lastGazeLog > 2000) {
-            this._lastGazeLog = now;
-            if (this.baselineGaze) {
-                const dLx = Math.abs(lx - this.baselineGaze.lx);
-                const dRx = Math.abs(rx - this.baselineGaze.rx);
-                const dLy = Math.abs(ly - this.baselineGaze.ly);
-                const dRy = Math.abs(ry - this.baselineGaze.ry);
-                console.log(`[Muraqib Gaze] H: dL=${dLx.toFixed(3)} dR=${dRx.toFixed(3)} (tol=${this.gazeTolH}) | V: dL=${dLy.toFixed(3)} dR=${dRy.toFixed(3)} (tol=${this.gazeTolV}) | baseline: lx=${this.baselineGaze.lx.toFixed(3)} ly=${this.baselineGaze.ly.toFixed(3)} | now: lx=${lx.toFixed(3)} ly=${ly.toFixed(3)}`);
-            } else {
-                console.log(`[Muraqib Gaze] No baseline | lx=${lx.toFixed(3)} rx=${rx.toFixed(3)} ly=${ly.toFixed(3)} ry=${ry.toFixed(3)}`);
-            }
-        }
-
         if (this.baselineGaze) {
-            // Compare against personal baseline captured on check page
             const dLx = Math.abs(lx - this.baselineGaze.lx);
             const dRx = Math.abs(rx - this.baselineGaze.rx);
             const dLy = Math.abs(ly - this.baselineGaze.ly);
@@ -247,15 +231,14 @@ class AntiCheatMonitor {
             const awayV = dLy > this.gazeTolV && dRy > this.gazeTolV;
 
             if (awayH || awayV) {
-                console.log(`[Muraqib Gaze] TRIGGERED: ${awayH ? 'horizontal' : 'vertical'}`);
+                console.log(`[Muraqib Gaze] FIRED ${awayH ? 'H' : 'V'} | H: dL=${dLx.toFixed(3)} dR=${dRx.toFixed(3)} (tol=${this.gazeTolH}) | V: dL=${dLy.toFixed(3)} dR=${dRy.toFixed(3)} (tol=${this.gazeTolV})`);
                 this.reportEvent('looking_away');
             }
         } else {
-            // No baseline available — fall back to absolute thresholds
             const awayH = (lx < 0.20 || lx > 0.80) && (rx < 0.20 || rx > 0.80);
             const awayV = (ly < 0.10 || ly > 0.90) && (ry < 0.10 || ry > 0.90);
             if (awayH || awayV) {
-                console.log(`[Muraqib Gaze] TRIGGERED (no baseline): lx=${lx.toFixed(3)} ly=${ly.toFixed(3)}`);
+                console.log(`[Muraqib Gaze] FIRED (no baseline) | lx=${lx.toFixed(3)} rx=${rx.toFixed(3)} ly=${ly.toFixed(3)} ry=${ry.toFixed(3)}`);
                 this.reportEvent('looking_away');
             }
         }
