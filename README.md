@@ -1,59 +1,118 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Muraqib
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A web-based quiz platform with real-time anti-cheat monitoring.
 
-## About Laravel
+Muraqib lets teachers create quizzes, manage subjects, and review attempt results with full visibility into suspicious student behaviour. Before a quiz begins, students must pass a camera check confirming one face is visible. During the quiz the system monitors for things like looking away, tab switching, and multiple faces — each event adds to a score, and if that score crosses the threshold the teacher configured, the attempt gets flagged for review. This is a demo-focused project built with Laravel and Bootstrap.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Table of Contents
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [Demo Accounts](#demo-accounts)
+- [How Anti-Cheat Works](#how-anti-cheat-works)
+- [Project Structure](#project-structure)
+- [Known Limitations](#known-limitations)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Features
 
-## Learning Laravel
+Teachers can manage subjects, enrol students, build multiple-choice quizzes, configure anti-cheat thresholds per quiz, and review flagged attempts with a full event timeline and screenshots.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Students see only their enrolled subjects, must pass a camera check before starting any quiz, and receive their score immediately after submitting. If their attempt was flagged they are informed but the final decision stays with the teacher.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Super admins can create teacher and student accounts, deactivate users, and get a high-level view of activity across the platform.
 
-## Laravel Sponsors
+## Tech Stack
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+| Layer | Technology |
+|---|---|
+| Backend | Laravel 12, PHP 8.2+ |
+| Frontend | Blade, Bootstrap 5.3, Vanilla JS |
+| Database | MySQL 8 |
+| Face Detection | face-api.js (CDN) |
+| Roles & Permissions | Laratrust |
 
-### Premium Partners
+## Getting Started
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+git clone https://github.com/laithsleit/Muraqib.git
+cd Muraqib
+cp .env.example .env
+# fill in DB_DATABASE, DB_USERNAME, DB_PASSWORD
+composer install
+php artisan key:generate
+php artisan migrate --seed
+php artisan serve
+```
 
-## Contributing
+Camera access requires a secure context. `localhost` works out of the box. If you deploy to a server, HTTPS is required — browsers block `getUserMedia` on plain HTTP.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Screenshots are stored privately under `storage/app/anticheat/`. Make sure this directory is writable. It is excluded from version control so the folder structure is created by the seeder on first run.
 
-## Code of Conduct
+## Demo Accounts
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+| Role | Email | Password |
+|---|---|---|
+| Super Admin | admin@quiz.com | password |
+| Teacher | teacher@quiz.com | password |
+| Student 1 | student1@quiz.com | password |
+| Student 2 | student2@quiz.com | password |
 
-## Security Vulnerabilities
+## How Anti-Cheat Works
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Before a quiz starts, the student's camera is checked for a single visible face. The quiz cannot begin until this check passes — no face, covered camera, or multiple faces all block the start button.
 
-## License
+During the quiz, the camera keeps running in a small preview window. Every few seconds the system checks what it sees. Certain behaviours add points to the student's anti-cheat score for that attempt.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+| Event | Points |
+|---|---|
+| Face Not Detected | 10 |
+| Multiple Faces | 20 |
+| Looking Away | 5 |
+| Phone Detected | 25 |
+| Tab / Window Switch | 15 |
+
+Each quiz has a score threshold set by the teacher at creation time. If the student's total reaches or exceeds that threshold, the attempt is flagged. Flagging does not automatically penalise the student — it surfaces the attempt in the teacher's reports page for manual review, with a full event timeline and screenshots.
+
+## Project Structure
+
+```
+app/
+  Actions/
+  Http/
+    Controllers/
+    Requests/
+  Models/
+config/
+  anticheat.php
+public/
+  assets/
+    css/app.css
+    js/
+      app.js
+      anticheat-monitor.js
+      camera-check.js
+      quiz-timer.js
+resources/
+  views/
+    layouts/
+    teacher/
+    student/
+    admin/
+    auth/
+routes/
+  web.php
+database/
+  migrations/
+  seeders/
+storage/
+  app/
+    anticheat/        <-- screenshots stored here, excluded from git
+```
+
+## Known Limitations
+
+- Phone detection (`phone_detected`) is defined in the config but not yet implemented in the client-side monitor. It requires a dedicated object detection model.
+- PDF export on the attempt review page is a placeholder.
+- There is no email delivery configured by default — password reset emails go to the log file.
+- The platform does not support real-time WebSocket notifications. Anti-cheat events are processed via standard HTTP requests.
