@@ -6,17 +6,19 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Muraqib')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="{{ asset('assets/img/logo.svg') }}">
 </head>
 <body>
     <div class="auth-wrapper">
+        <a href="/" class="auth-back-link"><i class="bi bi-arrow-left"></i> Back to Home</a>
         <div class="auth-card">
-            <div class="auth-logo">
+            <a href="/" class="auth-logo text-decoration-none">
                 <img src="{{ asset('assets/img/logo.svg') }}" alt="Muraqib">
                 <span>Muraqib</span>
-            </div>
+            </a>
             <p class="text-muted text-center small mb-4">Smart Quiz Monitoring Platform</p>
 
             @yield('content')

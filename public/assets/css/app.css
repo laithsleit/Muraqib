@@ -398,6 +398,31 @@ body {
     border-radius: 0 0 2rem 2rem;
 }
 
+.auth-back-link {
+    position: absolute;
+    top: 1.25rem;
+    left: 1.5rem;
+    z-index: 10;
+    color: rgba(255,255,255,0.85);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 50px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.18);
+    transition: var(--transition);
+}
+
+.auth-back-link:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.22);
+}
+
 .auth-card {
     position: relative;
     z-index: 1;
@@ -491,6 +516,46 @@ body {
 
 .site-footer a:hover {
     color: var(--primary);
+}
+
+/* ─── Steps ─── */
+
+.step-number {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+/* ─── Accordion ─── */
+
+.accordion-button {
+    background: var(--card-bg);
+    color: var(--text-main);
+    box-shadow: none !important;
+}
+
+.accordion-button:not(.collapsed) {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.accordion-button:focus {
+    border-color: transparent;
+}
+
+.accordion-button::after {
+    filter: none;
+}
+
+.accordion-button:not(.collapsed)::after {
+    filter: none;
 }
 
 /* ─── Utilities ─── */
