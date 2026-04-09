@@ -14,7 +14,6 @@ class Quiz extends Model
         'description',
         'duration_minutes',
         'is_published',
-        'allow_retake',
         'score_threshold',
     ];
 
@@ -22,7 +21,6 @@ class Quiz extends Model
     {
         return [
             'is_published' => 'boolean',
-            'allow_retake' => 'boolean',
         ];
     }
 

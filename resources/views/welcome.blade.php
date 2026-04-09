@@ -37,7 +37,7 @@
                             <i class="bi bi-pencil-square"></i>
                         </div>
                         <h5 class="fw-bold mb-2">Smart Quizzes</h5>
-                        <p class="text-muted mb-0" style="font-size: 0.9rem;">Create quizzes with time limits, retake policies, and automatic grading. Flexible enough for any course.</p>
+                        <p class="text-muted mb-0" style="font-size: 0.9rem;">Create quizzes with time limits, anti-cheat monitoring, and automatic grading. Flexible enough for any course.</p>
                     </div>
                 </div>
                 <div class="col-md-4">

@@ -24,10 +24,7 @@ class DashboardController extends Controller
 
         $availableQuizzes = Quiz::whereIn('subject_id', $subjectIds)
             ->where('is_published', true)
-            ->where(function ($q) use ($submittedQuizIds) {
-                $q->whereNotIn('id', $submittedQuizIds)
-                    ->orWhere('allow_retake', true);
-            })
+            ->whereNotIn('id', $submittedQuizIds)
             ->count();
 
         $completedQuizzes = Attempt::where('student_id', $student->id)
@@ -37,10 +34,7 @@ class DashboardController extends Controller
         foreach ($enrolledSubjects as $subject) {
             $subject->available_quizzes_count = Quiz::where('subject_id', $subject->id)
                 ->where('is_published', true)
-                ->where(function ($q) use ($submittedQuizIds) {
-                    $q->whereNotIn('id', $submittedQuizIds)
-                        ->orWhere('allow_retake', true);
-                })
+                ->whereNotIn('id', $submittedQuizIds)
                 ->count();
         }
 

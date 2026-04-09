@@ -39,12 +39,6 @@
                     </div>
                     <div class="col-md-4 d-flex align-items-end">
                         <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="allow_retake" name="allow_retake" value="1" {{ old('allow_retake') ? 'checked' : '' }}>
-                            <label class="form-check-label" for="allow_retake">Allow Retake</label>
-                        </div>
-                    </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="is_published" name="is_published" value="1" {{ old('is_published') ? 'checked' : '' }}>
                             <label class="form-check-label" for="is_published">Published</label>
                         </div>

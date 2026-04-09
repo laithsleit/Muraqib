@@ -12,7 +12,6 @@ class UpdateQuizAction
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'duration_minutes' => $data['duration_minutes'],
-            'allow_retake' => $data['allow_retake'] ?? false,
             'is_published' => $data['is_published'] ?? false,
             'score_threshold' => $data['score_threshold'],
         ]);
