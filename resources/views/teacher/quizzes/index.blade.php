@@ -57,6 +57,7 @@
                                     <td>
                                         <div class="d-flex gap-1">
                                             <a href="{{ route('teacher.questions.index', $quiz) }}" class="btn btn-outline-primary btn-sm">Questions</a>
+                                            <a href="{{ route('teacher.attempts.index', $quiz) }}" class="btn btn-outline-secondary btn-sm">Attempts</a>
                                             <a href="{{ route('teacher.quizzes.edit', [$subject, $quiz]) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
                                             <form action="{{ route('teacher.quizzes.togglePublish', [$subject, $quiz]) }}" method="POST">
                                                 @csrf

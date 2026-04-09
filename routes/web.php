@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\ResetPasswordController;
@@ -8,6 +10,7 @@ use App\Http\Controllers\Student\DashboardController as StudentDashboardControll
 use App\Http\Controllers\Student\QuizCheckController;
 use App\Http\Controllers\Student\SubjectQuizController;
 use App\Http\Controllers\Student\SuspiciousEventController;
+use App\Http\Controllers\Teacher\AttemptController as TeacherAttemptController;
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
 use App\Http\Controllers\Teacher\OptionController;
 use App\Http\Controllers\Teacher\QuestionController;
@@ -39,13 +42,15 @@ Route::middleware('auth')->group(function () {
 
     // Super Admin routes
     Route::prefix('admin')->middleware('role:super_admin')->group(function () {
-        Route::get('/dashboard', function () {
-            return view('admin.dashboard');
-        })->name('admin.dashboard');
+        Route::get('/dashboard', AdminDashboardController::class)->name('admin.dashboard');
 
-        Route::get('/users', function () {
-            return view('admin.users.index');
-        })->name('admin.users.index');
+        Route::get('/users', [UserController::class, 'index'])->name('admin.users.index');
+        Route::get('/users/create', [UserController::class, 'create'])->name('admin.users.create');
+        Route::post('/users', [UserController::class, 'store'])->name('admin.users.store');
+        Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('admin.users.edit');
+        Route::put('/users/{user}', [UserController::class, 'update'])->name('admin.users.update');
+        Route::post('/users/{user}/toggle-active', [UserController::class, 'toggleActive'])->name('admin.users.toggleActive');
+        Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('admin.users.destroy');
     });
 
     // Teacher routes
@@ -86,6 +91,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/questions/{question}/options', [OptionController::class, 'store'])->name('teacher.options.store');
         Route::put('/options/{option}', [OptionController::class, 'update'])->name('teacher.options.update');
         Route::delete('/options/{option}', [OptionController::class, 'destroy'])->name('teacher.options.destroy');
+
+        // Attempts
+        Route::get('/quizzes/{quiz}/attempts', [TeacherAttemptController::class, 'index'])->name('teacher.attempts.index');
+        Route::get('/attempts/{attempt}/review', [TeacherAttemptController::class, 'review'])->name('teacher.attempts.review');
 
         Route::get('/anticheat-guide', function () {
             return view('teacher.anticheat-guide');
