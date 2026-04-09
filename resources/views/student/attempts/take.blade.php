@@ -5,7 +5,14 @@
     <span class="text-muted small">{{ auth()->user()->name }}</span>
 @endsection
 
+@push('head')
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+@endpush
+
 @section('content')
+    {{-- Toast container --}}
+    <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;"></div>
+
     <div class="row g-4">
         {{-- Questions --}}
         <div class="col-lg-8">
@@ -95,7 +102,7 @@
                 <div class="card mb-3">
                     <div class="card-body p-2 text-center">
                         <video id="monitorVideo" autoplay muted playsinline style="width: 100%; max-width: 200px; border-radius: 8px; display: block; margin: 0 auto;"></video>
-                        <div class="d-flex align-items-center justify-content-center gap-1 mt-2">
+                        <div class="d-flex align-items-center justify-content-center gap-1 mt-2" id="monitorStatus">
                             <span class="d-inline-block rounded-circle" style="width: 8px; height: 8px; background: var(--success);"></span>
                             <span class="text-muted small">Monitoring Active</span>
                         </div>
@@ -108,6 +115,7 @@
 
 @push('scripts')
     <script src="{{ asset('assets/js/quiz-timer.js') }}"></script>
+    <script src="{{ asset('assets/js/anticheat-monitor.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // Timer
@@ -119,12 +127,17 @@
             });
             timer.init();
 
-            // Camera monitoring (best-effort, no blocking)
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                    document.getElementById('monitorVideo').srcObject = stream;
-                })
-                .catch(() => {});
+            // Anti-cheat monitor
+            const monitor = new AntiCheatMonitor();
+            monitor.init({
+                attemptId: {{ $attempt->id }},
+                videoElement: document.getElementById('monitorVideo'),
+                reportEndpoint: '{{ route("student.attempts.event", $attempt) }}',
+                csrfToken: '{{ csrf_token() }}',
+            });
+
+            // Destroy monitor on form submit
+            document.getElementById('quizForm').addEventListener('submit', () => monitor.destroy());
 
             // Progress tracking
             const totalQuestions = {{ $questions->count() }};
