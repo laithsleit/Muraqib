@@ -24,12 +24,13 @@ class AntiCheatMonitor {
 
         this.lastEventTimes = {};
         this.eventDebounce = {
-            face_missing: 5000,
+            face_missing: 10000,
             multiple_faces: 5000,
-            looking_away: 8000,
+            looking_away: 10000,
             face_changed: 10000,
-            phone_detected: 15000,
+            phone_detected: 5000,
         };
+        this._phoneBoxes = [];
     }
 
     init(config) {
@@ -149,16 +150,17 @@ class AntiCheatMonitor {
         const faces = results.multiFaceLandmarks || [];
 
         if (faces.length === 0) {
+            this.drawPhoneBoxes(ctx);
             this.reportEvent('face_missing');
             return;
         }
 
         if (faces.length > 1) {
             this.reportEvent('multiple_faces');
-            // Still draw all faces
             for (const landmarks of faces) {
                 this.drawFaceMesh(ctx, landmarks);
             }
+            this.drawPhoneBoxes(ctx);
             return;
         }
 
@@ -175,6 +177,9 @@ class AntiCheatMonitor {
         if (this.referenceNoseRatio !== null) {
             this.checkFaceChanged(landmarks);
         }
+
+        // Draw phone detection boxes on top
+        this.drawPhoneBoxes(ctx);
     }
 
     drawFaceMesh(ctx, landmarks) {
@@ -209,8 +214,9 @@ class AntiCheatMonitor {
         const rightOuter = landmarks[263];
         const rightOffsetX = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
 
-        const lookingAwayH = (leftOffsetX < 0.35 || leftOffsetX > 0.65) &&
-                             (rightOffsetX < 0.35 || rightOffsetX > 0.65);
+        // Widened horizontal thresholds to allow natural screen-reading eye movement
+        const lookingAwayH = (leftOffsetX < 0.28 || leftOffsetX > 0.72) &&
+                             (rightOffsetX < 0.28 || rightOffsetX > 0.72);
 
         // Vertical check — iris Y relative to eye top/bottom
         const leftTop = landmarks[159];
@@ -227,8 +233,9 @@ class AntiCheatMonitor {
             ? (rightIris.y - rightTop.y) / rightEyeH
             : 0.5;
 
-        const lookingAwayV = (leftOffsetY < 0.2 || leftOffsetY > 0.8) &&
-                             (rightOffsetY < 0.2 || rightOffsetY > 0.8);
+        // Widened vertical thresholds to allow reading top/bottom of screen
+        const lookingAwayV = (leftOffsetY < 0.15 || leftOffsetY > 0.85) &&
+                             (rightOffsetY < 0.15 || rightOffsetY > 0.85);
 
         if (lookingAwayH || lookingAwayV) {
             this.reportEvent('looking_away');
@@ -262,6 +269,19 @@ class AntiCheatMonitor {
             const predictions = await this.cocoModel.detect(this.videoElement);
             const phones = predictions.filter(p => p.class === 'cell phone' && p.score > 0.6);
 
+            // Store phone bounding boxes for drawing on next face result frame
+            const vw = this.videoElement.clientWidth;
+            const vh = this.videoElement.clientHeight;
+            const vidW = this.videoElement.videoWidth;
+            const vidH = this.videoElement.videoHeight;
+            this._phoneBoxes = phones.map(p => ({
+                x: p.bbox[0] * (vw / vidW),
+                y: p.bbox[1] * (vh / vidH),
+                w: p.bbox[2] * (vw / vidW),
+                h: p.bbox[3] * (vh / vidH),
+                score: p.score,
+            }));
+
             if (phones.length > 0) {
                 this.reportEvent('phone_detected');
             }
@@ -278,13 +298,34 @@ class AntiCheatMonitor {
         }
     }
 
+    drawPhoneBoxes(ctx) {
+        for (const box of this._phoneBoxes) {
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 3]);
+            ctx.strokeRect(box.x, box.y, box.w, box.h);
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.7)';
+            ctx.font = 'bold 11px sans-serif';
+            const label = 'Phone ' + Math.round(box.score * 100) + '%';
+            const tw = ctx.measureText(label).width;
+            ctx.fillRect(box.x, box.y - 16, tw + 8, 16);
+            ctx.fillStyle = '#fff';
+            ctx.fillText(label, box.x + 4, box.y - 4);
+        }
+    }
+
     captureScreenshot() {
         try {
             const canvas = document.createElement('canvas');
             canvas.width = this.videoElement.videoWidth;
             canvas.height = this.videoElement.videoHeight;
             const ctx = canvas.getContext('2d');
+            // Draw video frame
             ctx.drawImage(this.videoElement, 0, 0);
+            // Draw the mesh/detection overlay on top so reviewers can see it
+            ctx.drawImage(this.canvasElement, 0, 0, canvas.width, canvas.height);
             return canvas.toDataURL('image/jpeg', this.screenshotQuality);
         } catch (err) {
             return null;
