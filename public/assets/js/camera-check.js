@@ -135,36 +135,35 @@ class CameraCheck {
 
             if (results.multiFaceLandmarks.length === 1) {
                 const lm = results.multiFaceLandmarks[0];
-                window.muraqibReferenceLandmarks = lm;
 
-                // Compute and persist reference face ratios for identity check
+                // Save head position baseline (nose relative to face)
                 const nose = lm[1], leftCheek = lm[234], rightCheek = lm[454];
-                const fw = Math.hypot(rightCheek.x - leftCheek.x, rightCheek.y - leftCheek.y);
-                if (fw > 0.001) {
-                    sessionStorage.setItem('muraqib_ref_face', JSON.stringify({
-                        leftRatio: Math.hypot(nose.x - leftCheek.x, nose.y - leftCheek.y) / fw,
-                        rightRatio: Math.hypot(nose.x - rightCheek.x, nose.y - rightCheek.y) / fw,
-                        noseRatio: (nose.x - leftCheek.x) / (rightCheek.x - leftCheek.x),
-                    }));
+                const forehead = lm[10], chin = lm[152];
+                const faceW = Math.abs(rightCheek.x - leftCheek.x);
+                const faceH = Math.abs(chin.y - forehead.y);
+                if (faceW > 0.01 && faceH > 0.01) {
+                    const faceCenterX = (leftCheek.x + rightCheek.x) / 2;
+                    const head = {
+                        x: (nose.x - faceCenterX) / faceW,
+                        y: (nose.y - forehead.y) / faceH,
+                    };
+                    sessionStorage.setItem('muraqib_ref_head', JSON.stringify(head));
                 }
 
-                // Capture and persist baseline gaze
+                // Save iris gaze baseline
                 if (lm.length >= 478) {
                     const leftIris = lm[468], leftInner = lm[33], leftOuter = lm[133];
-                    const rightIris = lm[473], rightInner = lm[362], rightOuter = lm[263];
-                    const leftTop = lm[159], leftBottom = lm[145];
-                    const rightTop = lm[386], rightBottom = lm[374];
+                    const rightIris = lm[473], rightOuter = lm[263], rightInner = lm[362];
+                    const eyeW_L = Math.abs(leftOuter.x - leftInner.x);
+                    const eyeW_R = Math.abs(rightInner.x - rightOuter.x);
 
-                    const lx = (leftIris.x - leftInner.x) / (leftOuter.x - leftInner.x);
-                    const rx = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
-                    const leftEyeH = Math.abs(leftBottom.y - leftTop.y);
-                    const rightEyeH = Math.abs(rightBottom.y - rightTop.y);
-                    const ly = leftEyeH > 0.005 ? (leftIris.y - leftTop.y) / leftEyeH : 0.5;
-                    const ry = rightEyeH > 0.005 ? (rightIris.y - rightTop.y) / rightEyeH : 0.5;
-
-                    const gaze = { lx, rx, ly, ry };
-                    window.muraqibReferenceGaze = gaze;
-                    sessionStorage.setItem('muraqib_ref_gaze', JSON.stringify(gaze));
+                    if (eyeW_L > 0.005 && eyeW_R > 0.005) {
+                        const gaze = {
+                            lx: (leftIris.x - leftInner.x) / eyeW_L,
+                            rx: (rightIris.x - rightOuter.x) / eyeW_R,
+                        };
+                        sessionStorage.setItem('muraqib_ref_gaze', JSON.stringify(gaze));
+                    }
                 }
 
                 this.updateStatus('ok', 'Camera check passed — face registered');

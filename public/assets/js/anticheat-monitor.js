@@ -9,19 +9,16 @@ class AntiCheatMonitor {
         this.cocoModel = null;
         this._rafId = null;
         this._destroyed = false;
-        this.referenceNoseRatio = null;
-        this.referenceLeftRatio = null;
-        this.referenceRightRatio = null;
         this.baselineGaze = null;
-        // Tolerance from baseline before "looking away" counts
-        this.gazeTolH = 0.24;
-        this.gazeTolV = 0.42;
-        // Must look away for this many ms before firing event
+        this.baselineHead = null;
+        // How far iris can deviate from baseline before counting as "eyes looking away"
+        this.irisToleranceH = 0.15;
+        // How far head (nose) can rotate from baseline before counting as "head turned"
+        this.headToleranceH = 0.12;
+        this.headToleranceV = 0.10;
+        // Must be looking away for 1s before firing
         this._gazeAwayStart = null;
         this._gazeSustainMs = 1000;
-        // Face changed sustain — must be a different face for 2s
-        this._faceChangedStart = null;
-        this._faceChangedSustainMs = 2000;
         this.reportEndpoint = '';
         this.csrfToken = '';
         this.submitEndpoint = '';
@@ -37,7 +34,6 @@ class AntiCheatMonitor {
             face_missing: 10000,
             multiple_faces: 5000,
             looking_away: 10000,
-            face_changed: 10000,
             phone_detected: 5000,
         };
         this._phoneBoxes = [];
@@ -60,22 +56,19 @@ class AntiCheatMonitor {
     }
 
     loadReference() {
-        // Load face ratios from sessionStorage (persists across page navigation)
-        try {
-            const face = JSON.parse(sessionStorage.getItem('muraqib_ref_face'));
-            if (face) {
-                this.referenceLeftRatio = face.leftRatio;
-                this.referenceRightRatio = face.rightRatio;
-                this.referenceNoseRatio = face.noseRatio;
-            }
-        } catch (e) {}
-
-        // Load baseline gaze from sessionStorage
         try {
             const gaze = JSON.parse(sessionStorage.getItem('muraqib_ref_gaze'));
             if (gaze) {
                 this.baselineGaze = gaze;
                 console.log('[Muraqib] Baseline gaze loaded:', gaze);
+            }
+        } catch (e) {}
+
+        try {
+            const head = JSON.parse(sessionStorage.getItem('muraqib_ref_head'));
+            if (head) {
+                this.baselineHead = head;
+                console.log('[Muraqib] Baseline head loaded:', head);
             }
         } catch (e) {}
     }
@@ -150,7 +143,6 @@ class AntiCheatMonitor {
 
         const faces = results.multiFaceLandmarks || [];
 
-        // Draw everything BEFORE reporting so screenshots include overlays
         for (const lm of faces) {
             this.drawFaceMesh(ctx, lm);
         }
@@ -171,11 +163,7 @@ class AntiCheatMonitor {
         const landmarks = faces[0];
 
         if (landmarks.length >= 478) {
-            this.checkGaze(landmarks);
-        }
-
-        if (this.referenceNoseRatio !== null) {
-            this.checkFaceChanged(landmarks);
+            this.checkLookingAway(landmarks);
         }
     }
 
@@ -198,106 +186,70 @@ class AntiCheatMonitor {
         });
     }
 
-    checkGaze(landmarks) {
-        // Horizontal iris offsets
-        const leftIris = landmarks[468], leftInner = landmarks[33], leftOuter = landmarks[133];
-        const rightIris = landmarks[473], rightInner = landmarks[362], rightOuter = landmarks[263];
-        const lx = (leftIris.x - leftInner.x) / (leftOuter.x - leftInner.x);
-        const rx = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
+    checkLookingAway(landmarks) {
+        let reason = null;
 
-        // Vertical iris offsets — skip if eye height is too small (blink/squint)
-        const leftTop = landmarks[159], leftBottom = landmarks[145];
-        const rightTop = landmarks[386], rightBottom = landmarks[374];
-        const leftEyeH = Math.abs(leftBottom.y - leftTop.y);
-        const rightEyeH = Math.abs(rightBottom.y - rightTop.y);
-        const minEyeH = 0.008;
-        const eyesOpen = leftEyeH > minEyeH && rightEyeH > minEyeH;
+        // --- HEAD ROTATION (face turning) ---
+        const nose = landmarks[1];
+        const leftCheek = landmarks[234];
+        const rightCheek = landmarks[454];
+        const forehead = landmarks[10];
+        const chin = landmarks[152];
 
-        let ly = 0.5, ry = 0.5;
-        if (eyesOpen) {
-            ly = Math.max(0, Math.min(1, (leftIris.y - leftTop.y) / leftEyeH));
-            ry = Math.max(0, Math.min(1, (rightIris.y - rightTop.y) / rightEyeH));
+        const faceCenterX = (leftCheek.x + rightCheek.x) / 2;
+        const faceW = Math.abs(rightCheek.x - leftCheek.x);
+        const faceH = Math.abs(chin.y - forehead.y);
+
+        if (faceW > 0.01 && faceH > 0.01) {
+            const headX = (nose.x - faceCenterX) / faceW;
+            const headY = (nose.y - forehead.y) / faceH;
+
+            if (this.baselineHead) {
+                const dX = Math.abs(headX - this.baselineHead.x);
+                const dY = Math.abs(headY - this.baselineHead.y);
+                if (dX > this.headToleranceH) reason = 'head-H';
+                if (dY > this.headToleranceV) reason = 'head-V';
+            } else {
+                // No baseline — use absolute: nose should be roughly centered
+                if (Math.abs(headX) > 0.15) reason = 'head-H';
+            }
         }
 
-        let isAway = false;
+        // --- IRIS GAZE (eyes moving while face is still) ---
+        if (!reason) {
+            const leftIris = landmarks[468], leftInner = landmarks[33], leftOuter = landmarks[133];
+            const rightIris = landmarks[473], rightInner = landmarks[362], rightOuter = landmarks[263];
 
-        if (this.baselineGaze) {
-            const dLx = Math.abs(lx - this.baselineGaze.lx);
-            const dRx = Math.abs(rx - this.baselineGaze.rx);
-            const awayH = dLx > this.gazeTolH && dRx > this.gazeTolH;
+            const eyeW_L = Math.abs(leftOuter.x - leftInner.x);
+            const eyeW_R = Math.abs(rightInner.x - rightOuter.x);
 
-            let awayV = false;
-            if (eyesOpen) {
-                const dLy = Math.abs(ly - this.baselineGaze.ly);
-                const dRy = Math.abs(ry - this.baselineGaze.ry);
-                awayV = dLy > this.gazeTolV && dRy > this.gazeTolV;
+            if (eyeW_L > 0.005 && eyeW_R > 0.005) {
+                const lx = (leftIris.x - leftInner.x) / eyeW_L;
+                const rx = (rightIris.x - rightOuter.x) / eyeW_R;
+
+                if (this.baselineGaze) {
+                    const dLx = Math.abs(lx - this.baselineGaze.lx);
+                    const dRx = Math.abs(rx - this.baselineGaze.rx);
+                    if (dLx > this.irisToleranceH && dRx > this.irisToleranceH) {
+                        reason = 'iris-H';
+                    }
+                }
             }
-
-            isAway = awayH || awayV;
-        } else {
-            const awayH = (lx < 0.20 || lx > 0.80) && (rx < 0.20 || rx > 0.80);
-            let awayV = false;
-            if (eyesOpen) {
-                awayV = (ly < 0.10 || ly > 0.90) && (ry < 0.10 || ry > 0.90);
-            }
-            isAway = awayH || awayV;
         }
 
-        // Sustained check — must look away for 1 second before firing
+        // --- SUSTAINED CHECK ---
         const now = Date.now();
-        if (isAway) {
+        if (reason) {
             if (!this._gazeAwayStart) {
                 this._gazeAwayStart = now;
             }
             if (now - this._gazeAwayStart >= this._gazeSustainMs) {
-                if (this.baselineGaze) {
-                    const dLx = Math.abs(lx - this.baselineGaze.lx);
-                    const dRx = Math.abs(rx - this.baselineGaze.rx);
-                    const dLy = Math.abs(ly - this.baselineGaze.ly);
-                    const dRy = Math.abs(ry - this.baselineGaze.ry);
-                    console.log(`[Muraqib Gaze] FIRED | H: dL=${dLx.toFixed(3)} dR=${dRx.toFixed(3)} (tol=${this.gazeTolH}) | V: dL=${dLy.toFixed(3)} dR=${dRy.toFixed(3)} (tol=${this.gazeTolV}) | sustained ${now - this._gazeAwayStart}ms`);
-                } else {
-                    console.log(`[Muraqib Gaze] FIRED (no baseline) | lx=${lx.toFixed(3)} rx=${rx.toFixed(3)} ly=${ly.toFixed(3)} ry=${ry.toFixed(3)} | sustained ${now - this._gazeAwayStart}ms`);
-                }
+                console.log(`[Muraqib] LOOKING AWAY: ${reason} | sustained ${now - this._gazeAwayStart}ms`);
                 this.reportEvent('looking_away');
                 this._gazeAwayStart = null;
             }
         } else {
             this._gazeAwayStart = null;
-        }
-    }
-
-    checkFaceChanged(landmarks) {
-        const nose = landmarks[1];
-        const leftCheek = landmarks[234];
-        const rightCheek = landmarks[454];
-        const faceWidth = Math.hypot(rightCheek.x - leftCheek.x, rightCheek.y - leftCheek.y);
-        if (faceWidth < 0.001) return;
-
-        const noseToLeft = Math.hypot(nose.x - leftCheek.x, nose.y - leftCheek.y);
-        const noseToRight = Math.hypot(nose.x - rightCheek.x, nose.y - rightCheek.y);
-        const currentLeftRatio = noseToLeft / faceWidth;
-        const currentRightRatio = noseToRight / faceWidth;
-
-        const leftDiff = Math.abs(currentLeftRatio - this.referenceLeftRatio);
-        const rightDiff = Math.abs(currentRightRatio - this.referenceRightRatio);
-
-        // Both ratios must be off — head turning shifts one side but not both
-        // Threshold 0.20 is wide enough to ignore head rotation
-        const isDifferent = leftDiff > 0.20 && rightDiff > 0.20;
-
-        const now = Date.now();
-        if (isDifferent) {
-            if (!this._faceChangedStart) {
-                this._faceChangedStart = now;
-            }
-            if (now - this._faceChangedStart >= this._faceChangedSustainMs) {
-                console.log(`[Muraqib Face] FIRED | leftDiff=${leftDiff.toFixed(3)} rightDiff=${rightDiff.toFixed(3)} | sustained ${now - this._faceChangedStart}ms`);
-                this.reportEvent('face_changed');
-                this._faceChangedStart = null;
-            }
-        } else {
-            this._faceChangedStart = null;
         }
     }
 
@@ -338,13 +290,6 @@ class AntiCheatMonitor {
                 setTimeout(() => { this._phoneBoxes = []; }, 3000);
             } else {
                 this._phoneBoxes = [];
-            }
-
-            const secondary = predictions.filter(
-                p => (p.class === 'laptop' || p.class === 'book') && p.score > 0.6
-            );
-            if (secondary.length > 0) {
-                console.log('[Muraqib] Secondary objects detected:', secondary.map(p => p.class));
             }
         } catch (err) {}
     }
@@ -436,7 +381,6 @@ class AntiCheatMonitor {
             'face_missing': 'Face Not Detected',
             'multiple_faces': 'Multiple Faces Detected',
             'looking_away': 'Looking Away',
-            'face_changed': 'Different Face Detected',
             'phone_detected': 'Phone Detected',
             'tab_switch': 'Tab Switch Detected',
         };
@@ -445,12 +389,9 @@ class AntiCheatMonitor {
             'face_missing': 'warning',
             'multiple_faces': 'error',
             'looking_away': 'info',
-            'face_changed': 'error',
             'phone_detected': 'error',
             'tab_switch': 'warning',
         };
-
-        const longTimerTypes = ['face_changed', 'phone_detected'];
 
         if (typeof Swal !== 'undefined') {
             const message = flagged
@@ -464,7 +405,7 @@ class AntiCheatMonitor {
                 toast: true,
                 position: 'bottom-end',
                 showConfirmButton: false,
-                timer: longTimerTypes.includes(eventType) ? 6000 : 4000,
+                timer: eventType === 'phone_detected' ? 6000 : 4000,
                 timerProgressBar: true,
             });
         }
