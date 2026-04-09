@@ -169,8 +169,12 @@
             const progressBar = document.getElementById('progressBar');
             const progressText = document.getElementById('progressText');
 
+            const saveAnswerUrl = '{{ route("student.attempts.saveAnswer", $attempt) }}';
+            const csrfToken = '{{ csrf_token() }}';
+
             document.querySelectorAll('.question-radio').forEach(radio => {
                 radio.addEventListener('change', () => {
+                    // Update progress bar
                     const answered = new Set();
                     document.querySelectorAll('.question-radio:checked').forEach(r => {
                         answered.add(r.dataset.question);
@@ -178,6 +182,20 @@
                     const count = answered.size;
                     progressBar.style.width = ((count / totalQuestions) * 100) + '%';
                     progressText.textContent = count + '/' + totalQuestions;
+
+                    // Auto-save this answer
+                    fetch(saveAnswerUrl, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            question_id: radio.dataset.question,
+                            option_id: radio.value,
+                        }),
+                    }).catch(() => {});
                 });
             });
 

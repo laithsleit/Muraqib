@@ -23,6 +23,24 @@ class AttemptController extends Controller
         return view('student.attempts.take', compact('attempt', 'quiz', 'questions', 'existingAnswers', 'endTime'));
     }
 
+    public function saveAnswer(Request $request, Attempt $attempt)
+    {
+        abort_unless($attempt->student_id === Auth::id(), 403);
+        abort_unless($attempt->isInProgress(), 404);
+
+        $request->validate([
+            'question_id' => 'required|integer',
+            'option_id' => 'required|integer',
+        ]);
+
+        \App\Models\AttemptAnswer::updateOrCreate(
+            ['attempt_id' => $attempt->id, 'question_id' => $request->question_id],
+            ['selected_option_id' => $request->option_id],
+        );
+
+        return response()->json(['saved' => true]);
+    }
+
     public function submit(Request $request, Attempt $attempt, SubmitAttemptAction $action)
     {
         abort_unless($attempt->student_id === Auth::id(), 403);

@@ -24,7 +24,15 @@ class QuizCheckController extends Controller
             ->first();
 
         if ($inProgress) {
-            app(SubmitAttemptAction::class)->execute($inProgress, []);
+            $endTime = $inProgress->started_at->addMinutes($quiz->duration_minutes);
+
+            if ($endTime->isPast()) {
+                // Time expired — submit with whatever answers were auto-saved
+                app(SubmitAttemptAction::class)->execute($inProgress, []);
+            } else {
+                // Still has time — redirect back to the quiz
+                return redirect()->route('student.attempts.take', $inProgress);
+            }
         }
 
         $submitted = Attempt::where('quiz_id', $quiz->id)
@@ -45,6 +53,17 @@ class QuizCheckController extends Controller
         $student = Auth::user();
         abort_unless($quiz->is_published, 404);
         abort_unless($quiz->subject->students()->where('student_id', $student->id)->exists(), 403);
+
+        // If there's already an in-progress attempt, redirect to it
+        $existing = Attempt::where('quiz_id', $quiz->id)
+            ->where('student_id', $student->id)
+            ->whereNotNull('started_at')
+            ->whereNull('submitted_at')
+            ->first();
+
+        if ($existing) {
+            return redirect()->route('student.attempts.take', $existing);
+        }
 
         $attempt = Attempt::create([
             'quiz_id' => $quiz->id,

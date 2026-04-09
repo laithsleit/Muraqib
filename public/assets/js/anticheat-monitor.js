@@ -57,7 +57,6 @@ class AntiCheatMonitor {
         this._startDetection();
         this.initCocoSsd();
         this.bindTabSwitch();
-        this.bindAutoSubmitOnLeave();
     }
 
     loadReference() {
@@ -484,15 +483,6 @@ class AntiCheatMonitor {
         document.addEventListener('visibilitychange', this._tabSwitchHandler);
     }
 
-    bindAutoSubmitOnLeave() {
-        this._beforeUnloadHandler = () => {
-            if (!this.submitEndpoint) return;
-            const formData = new FormData(document.getElementById('quizForm'));
-            navigator.sendBeacon(this.submitEndpoint, formData);
-        };
-        window.addEventListener('unload', this._beforeUnloadHandler);
-    }
-
     destroy() {
         this._destroyed = true;
         if (this._rafId) {
@@ -509,9 +499,6 @@ class AntiCheatMonitor {
         }
         if (this._tabSwitchHandler) {
             document.removeEventListener('visibilitychange', this._tabSwitchHandler);
-        }
-        if (this._beforeUnloadHandler) {
-            window.removeEventListener('unload', this._beforeUnloadHandler);
         }
     }
 }

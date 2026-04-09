@@ -118,6 +118,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/quizzes/{quiz}/start', [QuizCheckController::class, 'start'])->name('student.quizzes.start');
 
         Route::get('/attempts/{attempt}/take', [AttemptController::class, 'take'])->name('student.attempts.take');
+        Route::post('/attempts/{attempt}/save-answer', [AttemptController::class, 'saveAnswer'])->name('student.attempts.saveAnswer');
         Route::post('/attempts/{attempt}/submit', [AttemptController::class, 'submit'])->name('student.attempts.submit');
         Route::post('/attempts/{attempt}/event', [SuspiciousEventController::class, 'store'])->name('student.attempts.event');
         Route::get('/attempts/{attempt}/results', [AttemptController::class, 'results'])->name('student.attempts.results');
