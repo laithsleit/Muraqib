@@ -16,7 +16,6 @@ class QuizCheckController extends Controller
         abort_unless($quiz->is_published, 404);
         abort_unless($quiz->subject->students()->where('student_id', $student->id)->exists(), 403);
 
-        // If in-progress attempt exists, go straight to quiz
         $inProgress = Attempt::where('quiz_id', $quiz->id)
             ->where('student_id', $student->id)
             ->whereNotNull('started_at')
@@ -27,7 +26,6 @@ class QuizCheckController extends Controller
             return redirect()->route('student.attempts.take', $inProgress);
         }
 
-        // If submitted and no retake allowed, block
         $submitted = Attempt::where('quiz_id', $quiz->id)
             ->where('student_id', $student->id)
             ->whereNotNull('submitted_at')
@@ -38,7 +36,6 @@ class QuizCheckController extends Controller
                 ->with('error', 'You have already completed this quiz and retakes are not allowed.');
         }
 
-        // Create a new attempt
         $attempt = Attempt::create([
             'quiz_id' => $quiz->id,
             'student_id' => $student->id,

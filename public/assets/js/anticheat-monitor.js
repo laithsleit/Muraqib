@@ -34,7 +34,6 @@ class AntiCheatMonitor {
                 this.videoElement.srcObject = this.stream;
             }
         } catch (err) {
-            // Camera may already be active from check page; fail silently
         }
     }
 
@@ -57,7 +56,6 @@ class AntiCheatMonitor {
             } else if (detections.length > 1) {
                 this.reportEvent('multiple_faces');
             } else {
-                // Single face — check position for looking away
                 const box = detections[0].box;
                 const centerX = box.x + box.width / 2;
                 const centerY = box.y + box.height / 2;
@@ -70,10 +68,8 @@ class AntiCheatMonitor {
                 if (xRatio < 0.2 || xRatio > 0.8 || yRatio < 0.1 || yRatio > 0.9) {
                     this.reportEvent('looking_away');
                 }
-                // Face centered and single — no report
             }
         } catch (err) {
-            // Never crash the quiz page due to monitoring errors
         }
     }
 
@@ -114,7 +110,6 @@ class AntiCheatMonitor {
                 }
             }
         } catch (err) {
-            // Fail silently — never interrupt the quiz
         }
     }
 

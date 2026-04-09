@@ -5,7 +5,6 @@
     <h4 class="fw-bold mb-1">Welcome back, {{ auth()->user()->name }}</h4>
     <p class="text-muted mb-4">Here's an overview of your subjects and quizzes.</p>
 
-    {{-- Stats --}}
     <div class="row g-3 mb-4">
         <div class="col-sm-6 col-lg-3">
             <div class="stat-card p-3">
@@ -33,7 +32,6 @@
         </div>
     </div>
 
-    {{-- Subjects table --}}
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>Your Subjects</span>

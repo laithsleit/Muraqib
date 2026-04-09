@@ -4,7 +4,6 @@
 @section('content')
     <h4 class="fw-bold mb-4">Anti-Cheat Guide</h4>
 
-    {{-- 1. How Monitoring Works --}}
     <div class="card mb-4">
         <div class="card-header"><i class="bi bi-camera-video me-1"></i> How Monitoring Works</div>
         <div class="card-body">
@@ -13,7 +12,6 @@
         </div>
     </div>
 
-    {{-- 2. Event Types & Point Values --}}
     <div class="card mb-4">
         <div class="card-header"><i class="bi bi-list-check me-1"></i> Event Types & Point Values</div>
         <div class="card-body p-0">
@@ -40,7 +38,6 @@
         </div>
     </div>
 
-    {{-- 3. How Flagging Works --}}
     <div class="card mb-4">
         <div class="card-header"><i class="bi bi-flag me-1"></i> How Flagging Works</div>
         <div class="card-body">
@@ -51,7 +48,6 @@
         </div>
     </div>
 
-    {{-- 4. What Happens Before the Quiz --}}
     <div class="card mb-4">
         <div class="card-header"><i class="bi bi-webcam me-1"></i> What Happens Before the Quiz</div>
         <div class="card-body">
@@ -61,7 +57,6 @@
         </div>
     </div>
 
-    {{-- 5. Tips for Setting Thresholds --}}
     <div class="card mb-4">
         <div class="card-header"><i class="bi bi-sliders me-1"></i> Tips for Setting Thresholds</div>
         <div class="card-body">

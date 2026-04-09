@@ -13,7 +13,6 @@
     </div>
 
     <div class="row g-4">
-        {{-- Enrolled --}}
         <div class="col-lg-6">
             <div class="card h-100">
                 <div class="card-header">
@@ -43,7 +42,6 @@
             </div>
         </div>
 
-        {{-- Available --}}
         <div class="col-lg-6">
             <div class="card h-100">
                 <div class="card-header">

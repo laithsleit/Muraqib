@@ -10,14 +10,11 @@
 @endpush
 
 @section('content')
-    {{-- Toast container --}}
     <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;"></div>
 
     <div class="row g-4">
-        {{-- Questions --}}
         <div class="col-lg-8">
             <h5 class="fw-bold mb-1">{{ $quiz->title }}</h5>
-            {{-- Progress bar --}}
             @php $answeredCount = $existingAnswers->filter(fn($v) => $v !== null)->count(); @endphp
             <div class="d-flex align-items-center gap-2 mb-4">
                 <div class="progress flex-grow-1" style="height: 6px;">
@@ -57,14 +54,12 @@
                     </div>
                 @endforeach
 
-                {{-- Submit --}}
                 <div class="text-end">
                     <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#submitModal">
                         <i class="bi bi-check2-all me-1"></i> Submit Quiz
                     </button>
                 </div>
 
-                {{-- Confirm Modal --}}
                 <div class="modal fade" id="submitModal" tabindex="-1">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content">
@@ -85,10 +80,8 @@
             </form>
         </div>
 
-        {{-- Sidebar --}}
         <div class="col-lg-4">
             <div style="position: sticky; top: 80px;">
-                {{-- Timer --}}
                 <div class="card mb-3 text-center">
                     <div class="card-body">
                         <div class="text-muted small mb-1">Time Remaining</div>
@@ -98,7 +91,6 @@
                     </div>
                 </div>
 
-                {{-- Camera --}}
                 <div class="card mb-3">
                     <div class="card-body p-2 text-center">
                         <video id="monitorVideo" autoplay muted playsinline style="width: 100%; max-width: 200px; border-radius: 8px; display: block; margin: 0 auto;"></video>
@@ -118,7 +110,6 @@
     <script src="{{ asset('assets/js/anticheat-monitor.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Timer
             const endTime = {{ $endTime->timestamp }};
             const timer = new QuizTimer({
                 endTimestamp: endTime,
@@ -127,7 +118,6 @@
             });
             timer.init();
 
-            // Anti-cheat monitor
             const monitor = new AntiCheatMonitor();
             monitor.init({
                 attemptId: {{ $attempt->id }},
@@ -136,10 +126,8 @@
                 csrfToken: '{{ csrf_token() }}',
             });
 
-            // Destroy monitor on form submit
             document.getElementById('quizForm').addEventListener('submit', () => monitor.destroy());
 
-            // Progress tracking
             const totalQuestions = {{ $questions->count() }};
             const progressBar = document.getElementById('progressBar');
             const progressText = document.getElementById('progressText');
@@ -156,7 +144,6 @@
                 });
             });
 
-            // Warn on navigation
             window.addEventListener('beforeunload', function (e) {
                 e.preventDefault();
                 e.returnValue = '';

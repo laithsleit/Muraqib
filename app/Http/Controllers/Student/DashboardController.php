@@ -18,7 +18,6 @@ class DashboardController extends Controller
             ->with('teacher')
             ->get();
 
-        // Available quizzes: published, in enrolled subjects, where student has no submitted attempt OR retake allowed
         $submittedQuizIds = Attempt::where('student_id', $student->id)
             ->whereNotNull('submitted_at')
             ->pluck('quiz_id');
@@ -35,7 +34,6 @@ class DashboardController extends Controller
             ->whereNotNull('submitted_at')
             ->count();
 
-        // Count available quizzes per subject for display
         foreach ($enrolledSubjects as $subject) {
             $subject->available_quizzes_count = Quiz::where('subject_id', $subject->id)
                 ->where('is_published', true)

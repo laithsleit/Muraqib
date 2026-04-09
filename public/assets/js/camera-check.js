@@ -35,7 +35,6 @@ class CameraCheck {
     async detect() {
         if (!this.modelsLoaded || !this.video.videoWidth) return;
 
-        // Check for dark/covered camera
         const canvas = document.createElement('canvas');
         canvas.width = this.video.videoWidth;
         canvas.height = this.video.videoHeight;

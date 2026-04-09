@@ -7,7 +7,6 @@
         <a href="{{ route('admin.users.create') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i> New User</a>
     </div>
 
-    {{-- Filter tabs --}}
     <div class="d-flex gap-2 mb-3">
         <a href="{{ route('admin.users.index') }}" class="btn btn-sm {{ !request('filter') ? 'btn-primary' : 'btn-outline-secondary' }}">All</a>
         <a href="{{ route('admin.users.index', ['filter' => 'teachers']) }}" class="btn btn-sm {{ request('filter') === 'teachers' ? 'btn-primary' : 'btn-outline-secondary' }}">Teachers</a>
@@ -75,7 +74,6 @@
         </div>
     </div>
 
-    {{-- Delete confirmation modal --}}
     <div class="modal fade" id="deleteModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">

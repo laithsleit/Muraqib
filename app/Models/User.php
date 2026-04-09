@@ -13,7 +13,6 @@ use Laratrust\Traits\HasRolesAndPermissions;
 
 class User extends Authenticatable implements LaratrustUser
 {
-    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasRolesAndPermissions;
 
     protected $fillable = [

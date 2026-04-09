@@ -5,7 +5,6 @@
     <h4 class="fw-bold mb-1">Welcome back, {{ auth()->user()->name }}</h4>
     <p class="text-muted mb-4">Here's a quick overview of your quizzes and subjects.</p>
 
-    {{-- Stats --}}
     <div class="row g-3 mb-4">
         <div class="col-sm-4">
             <div class="stat-card p-3">
@@ -27,7 +26,6 @@
         </div>
     </div>
 
-    {{-- Enrolled Subjects --}}
     <h5 class="fw-bold mb-3">Your Subjects</h5>
 
     @if($enrolledSubjects->isEmpty())

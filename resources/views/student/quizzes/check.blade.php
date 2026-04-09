@@ -15,7 +15,6 @@
             <h4 class="fw-bold mb-1">{{ $quiz->title }}</h4>
             <p class="text-muted mb-4">Duration: {{ $quiz->duration_minutes }} minutes</p>
 
-            {{-- Camera preview --}}
             <div class="camera-preview-box mx-auto mb-3">
                 <video id="cameraVideo" autoplay muted playsinline></video>
                 <div id="cameraPlaceholder" class="camera-placeholder">
@@ -24,12 +23,10 @@
                 </div>
             </div>
 
-            {{-- Status --}}
             <div id="cameraStatus" class="mb-4">
                 <span class="badge bg-secondary">Checking camera...</span>
             </div>
 
-            {{-- Start quiz form --}}
             <form action="{{ route('student.quizzes.start', $quiz) }}" method="POST">
                 @csrf
                 <button type="submit" id="startQuizBtn" class="btn btn-primary btn-lg px-5" disabled>

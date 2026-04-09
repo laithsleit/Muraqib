@@ -9,7 +9,6 @@ class TogglePublishAction
     public function execute(Quiz $quiz): array
     {
         if (! $quiz->is_published) {
-            // Validate before publishing: every question must have at least one correct option
             $questions = $quiz->questions()->with('options')->get();
 
             if ($questions->isEmpty()) {

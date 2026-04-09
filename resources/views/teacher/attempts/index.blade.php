@@ -13,7 +13,6 @@
         <h4 class="fw-bold mb-0">Attempts</h4>
     </div>
 
-    {{-- Stats --}}
     <div class="row g-3 mb-4">
         <div class="col-sm-4">
             <div class="stat-card p-3">
@@ -35,7 +34,6 @@
         </div>
     </div>
 
-    {{-- Filters --}}
     <div class="d-flex gap-2 mb-3">
         <a href="{{ route('teacher.attempts.index', $quiz) }}" class="btn btn-sm {{ !request('filter') ? 'btn-primary' : 'btn-outline-secondary' }}">All</a>
         <a href="{{ route('teacher.attempts.index', [$quiz, 'filter' => 'flagged']) }}" class="btn btn-sm {{ request('filter') === 'flagged' ? 'btn-danger' : 'btn-outline-danger' }}">Flagged Only</a>

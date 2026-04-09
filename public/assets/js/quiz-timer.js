@@ -46,7 +46,6 @@ class QuizTimer {
         this.display.textContent = '00:00';
         this.display.classList.add('text-danger');
 
-        // Auto-submit
         this.form.submit();
     }
 }

@@ -14,7 +14,6 @@ class UpdateUserAction
             'is_active' => $data['is_active'] ?? false,
         ]);
 
-        // Re-sync role
         $user->syncRoles([$data['role']]);
 
         return $user;

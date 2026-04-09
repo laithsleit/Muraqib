@@ -10,7 +10,6 @@ class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create permissions
         $permissions = [
             'manage-users',
             'manage-subjects',
@@ -23,7 +22,6 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission]);
         }
 
-        // Create roles and assign permissions
         $superAdmin = Role::firstOrCreate(['name' => 'super_admin']);
         $superAdmin->syncPermissions(['manage-users']);
 

@@ -13,7 +13,6 @@
         <h4 class="fw-bold mb-0">{{ $quiz->title }} — Results</h4>
     </div>
 
-    {{-- Score --}}
     <div class="card mb-4">
         <div class="card-body text-center py-4">
             <div class="mb-2">
@@ -36,7 +35,6 @@
         </div>
     </div>
 
-    {{-- Flagged warning --}}
     @if($attempt->is_flagged)
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-2"></i>
@@ -47,7 +45,6 @@
         </div>
     @endif
 
-    {{-- Question Breakdown --}}
     <h5 class="fw-bold mb-3">Question Breakdown</h5>
 
     @foreach($questions as $index => $question)

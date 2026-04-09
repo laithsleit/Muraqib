@@ -16,7 +16,6 @@
     <form action="{{ route('teacher.quizzes.update', [$subject, $quiz]) }}" method="POST">
         @csrf @method('PUT')
 
-        {{-- Quiz Details --}}
         <div class="card mb-4">
             <div class="card-header">Quiz Details</div>
             <div class="card-body">
@@ -54,7 +53,6 @@
             </div>
         </div>
 
-        {{-- Anti-Cheat Configuration --}}
         <div class="card mb-4" style="background: var(--primary-light); border-color: var(--primary);">
             <div class="card-header" style="background: var(--primary-light);">
                 <i class="bi bi-shield-check me-1"></i> Anti-Cheat Configuration

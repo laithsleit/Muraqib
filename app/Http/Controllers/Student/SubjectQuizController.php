@@ -19,7 +19,6 @@ class SubjectQuizController extends Controller
             ->withCount('questions')
             ->get();
 
-        // Eager load latest attempt per quiz for this student
         $quizIds = $quizzes->pluck('id');
         $attempts = Attempt::where('student_id', $student->id)
             ->whereIn('quiz_id', $quizIds)

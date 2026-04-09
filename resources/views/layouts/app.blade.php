@@ -12,7 +12,6 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('assets/img/logo.svg') }}">
 </head>
 <body class="app-body">
-    {{-- Top Navbar --}}
     <nav class="app-navbar">
         <div class="app-navbar-inner">
             <div class="d-flex align-items-center gap-3">
@@ -54,10 +53,8 @@
         </div>
     </nav>
 
-    {{-- Sidebar Overlay (mobile) --}}
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    {{-- Sidebar --}}
     <aside class="app-sidebar" id="appSidebar">
         <div class="sidebar-header d-lg-none">
             <a class="navbar-brand mb-0" href="/">
@@ -102,7 +99,6 @@
         </nav>
     </aside>
 
-    {{-- Main Content --}}
     <main class="app-main">
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">

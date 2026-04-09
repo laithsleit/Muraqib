@@ -15,7 +15,6 @@
     </div>
 
     <div class="row g-4">
-        {{-- Questions List --}}
         <div class="col-lg-8">
             @if($questions->isEmpty())
                 <div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>No questions yet. Add your first one using the form on the right.</div>
@@ -45,7 +44,6 @@
                         </div>
                     </div>
 
-                    {{-- Inline Edit (collapsed) --}}
                     <div class="collapse" id="editQ{{ $question->id }}">
                         <div class="card-body border-bottom" style="background: var(--surface);">
                             <form action="{{ route('teacher.questions.update', $question) }}" method="POST">
@@ -58,7 +56,6 @@
                         </div>
                     </div>
 
-                    {{-- Options --}}
                     <div class="card-body p-0">
                         @if($question->options->isEmpty())
                             <div class="p-3 text-muted small">No options yet.</div>
@@ -82,7 +79,6 @@
                                             </form>
                                         </div>
                                     </div>
-                                    {{-- Inline Edit Option --}}
                                     <div class="collapse" id="editOpt{{ $option->id }}">
                                         <div class="list-group-item" style="background: var(--surface);">
                                             <form action="{{ route('teacher.options.update', $option) }}" method="POST" class="d-flex gap-2 align-items-center">
@@ -100,7 +96,6 @@
                             </div>
                         @endif
 
-                        {{-- Add Option --}}
                         <div class="p-3 border-top" style="background: var(--surface);">
                             <form action="{{ route('teacher.options.store', $question) }}" method="POST" class="d-flex gap-2 align-items-center">
                                 @csrf
@@ -117,7 +112,6 @@
             @endforeach
         </div>
 
-        {{-- Add New Question --}}
         <div class="col-lg-4">
             <div class="card" style="position: sticky; top: 80px;">
                 <div class="card-header"><i class="bi bi-plus-circle me-1"></i> Add New Question</div>

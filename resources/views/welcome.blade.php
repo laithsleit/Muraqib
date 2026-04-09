@@ -3,7 +3,6 @@
 @section('title', 'Muraqib — Smart Quiz Monitoring Platform')
 
 @section('content')
-    {{-- Hero --}}
     <section class="hero-section text-white">
         <div class="container text-center py-5">
             <div class="py-4">
@@ -25,7 +24,6 @@
         </div>
     </section>
 
-    {{-- Features --}}
     <section class="py-5" id="features">
         <div class="container">
             <div class="text-center mb-5">
@@ -64,7 +62,6 @@
         </div>
     </section>
 
-    {{-- How It Works --}}
     <section class="py-5" id="how-it-works" style="background: var(--card-bg);">
         <div class="container">
             <div class="text-center mb-5">
@@ -91,7 +88,6 @@
         </div>
     </section>
 
-    {{-- About --}}
     <section class="py-5" id="about">
         <div class="container">
             <div class="row align-items-center g-5">
@@ -137,7 +133,6 @@
         </div>
     </section>
 
-    {{-- FAQ --}}
     <section class="py-5" id="faq" style="background: var(--card-bg);">
         <div class="container">
             <div class="text-center mb-5">
@@ -213,7 +208,6 @@
         </div>
     </section>
 
-    {{-- Contact --}}
     <section class="py-5" id="contact">
         <div class="container">
             <div class="row justify-content-center">
@@ -256,7 +250,6 @@
         </div>
     </section>
 
-    {{-- CTA --}}
     <section class="py-5" style="background: var(--primary-light);">
         <div class="container text-center py-3">
             <h3 class="fw-bold mb-2" style="letter-spacing: -0.02em;">Ready to get started?</h3>
