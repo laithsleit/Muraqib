@@ -12,6 +12,10 @@ class AntiCheatMonitor {
         this.referenceNoseRatio = null;
         this.referenceLeftRatio = null;
         this.referenceRightRatio = null;
+        this.baselineGaze = null;
+        // Tolerance from baseline before "looking away" fires
+        this.gazeTolH = 0.28;
+        this.gazeTolV = 0.35;
         this.reportEndpoint = '';
         this.csrfToken = '';
         this.submitEndpoint = '';
@@ -65,6 +69,11 @@ class AntiCheatMonitor {
         this.referenceLeftRatio = noseToLeft / faceWidth;
         this.referenceRightRatio = noseToRight / faceWidth;
         this.referenceNoseRatio = (nose.x - leftCheek.x) / (rightCheek.x - leftCheek.x);
+
+        // Load baseline gaze captured on the check page
+        if (window.muraqibReferenceGaze) {
+            this.baselineGaze = window.muraqibReferenceGaze;
+        }
     }
 
     async _startDetection() {
@@ -202,43 +211,39 @@ class AntiCheatMonitor {
     }
 
     checkGaze(landmarks) {
-        // Left eye: iris center 468, corners 33 (inner) and 133 (outer)
-        const leftIris = landmarks[468];
-        const leftInner = landmarks[33];
-        const leftOuter = landmarks[133];
-        const leftOffsetX = (leftIris.x - leftInner.x) / (leftOuter.x - leftInner.x);
+        // Compute current iris offsets
+        const leftIris = landmarks[468], leftInner = landmarks[33], leftOuter = landmarks[133];
+        const rightIris = landmarks[473], rightInner = landmarks[362], rightOuter = landmarks[263];
+        const lx = (leftIris.x - leftInner.x) / (leftOuter.x - leftInner.x);
+        const rx = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
 
-        // Right eye: iris center 473, corners 362 (inner) and 263 (outer)
-        const rightIris = landmarks[473];
-        const rightInner = landmarks[362];
-        const rightOuter = landmarks[263];
-        const rightOffsetX = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
-
-        // Wide horizontal thresholds — students read questions across the screen
-        const lookingAwayH = (leftOffsetX < 0.20 || leftOffsetX > 0.80) &&
-                             (rightOffsetX < 0.20 || rightOffsetX > 0.80);
-
-        // Vertical check — iris Y relative to eye top/bottom
-        const leftTop = landmarks[159];
-        const leftBottom = landmarks[145];
+        const leftTop = landmarks[159], leftBottom = landmarks[145];
+        const rightTop = landmarks[386], rightBottom = landmarks[374];
         const leftEyeH = Math.abs(leftBottom.y - leftTop.y);
-        const leftOffsetY = leftEyeH > 0.001
-            ? (leftIris.y - leftTop.y) / leftEyeH
-            : 0.5;
-
-        const rightTop = landmarks[386];
-        const rightBottom = landmarks[374];
         const rightEyeH = Math.abs(rightBottom.y - rightTop.y);
-        const rightOffsetY = rightEyeH > 0.001
-            ? (rightIris.y - rightTop.y) / rightEyeH
-            : 0.5;
+        const ly = leftEyeH > 0.001 ? (leftIris.y - leftTop.y) / leftEyeH : 0.5;
+        const ry = rightEyeH > 0.001 ? (rightIris.y - rightTop.y) / rightEyeH : 0.5;
 
-        // Wide vertical thresholds — students look up/down to read questions
-        const lookingAwayV = (leftOffsetY < 0.10 || leftOffsetY > 0.90) &&
-                             (rightOffsetY < 0.10 || rightOffsetY > 0.90);
+        if (this.baselineGaze) {
+            // Compare against personal baseline captured on check page
+            const dLx = Math.abs(lx - this.baselineGaze.lx);
+            const dRx = Math.abs(rx - this.baselineGaze.rx);
+            const dLy = Math.abs(ly - this.baselineGaze.ly);
+            const dRy = Math.abs(ry - this.baselineGaze.ry);
 
-        if (lookingAwayH || lookingAwayV) {
-            this.reportEvent('looking_away');
+            const awayH = dLx > this.gazeTolH && dRx > this.gazeTolH;
+            const awayV = dLy > this.gazeTolV && dRy > this.gazeTolV;
+
+            if (awayH || awayV) {
+                this.reportEvent('looking_away');
+            }
+        } else {
+            // No baseline available — fall back to absolute thresholds
+            const awayH = (lx < 0.20 || lx > 0.80) && (rx < 0.20 || rx > 0.80);
+            const awayV = (ly < 0.10 || ly > 0.90) && (ry < 0.10 || ry > 0.90);
+            if (awayH || awayV) {
+                this.reportEvent('looking_away');
+            }
         }
     }
 
