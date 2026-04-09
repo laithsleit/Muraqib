@@ -122,7 +122,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
-    <script src="{{ asset('assets/js/anticheat-monitor.js') }}"></script>
+    <script src="{{ asset('assets/js/anticheat-monitor.js') }}?t={{ time() }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async function () {
             window._muraqibSubmitting = false;
