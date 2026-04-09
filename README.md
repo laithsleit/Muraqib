@@ -29,7 +29,8 @@ Super admins can create teacher and student accounts, deactivate users, and get 
 | Backend | Laravel 12, PHP 8.2+ |
 | Frontend | Blade, Bootstrap 5.3, Vanilla JS |
 | Database | MySQL 8 |
-| Face Detection | face-api.js (CDN) |
+| Face Detection | MediaPipe FaceMesh (local WASM) |
+| Phone Detection | TensorFlow.js COCO-SSD |
 | Roles & Permissions | Laratrust |
 
 ## Getting Started
@@ -60,17 +61,18 @@ Screenshots are stored privately under `storage/app/anticheat/`. Make sure this 
 
 ## How Anti-Cheat Works
 
-Before a quiz starts, the student's camera is checked for a single visible face. The quiz cannot begin until this check passes — no face, covered camera, or multiple faces all block the start button.
+Before a quiz starts, the student's camera is checked for a single visible face using MediaPipe FaceMesh. A face mesh overlay is drawn on the video feed so the student can see the detection is working. The quiz cannot begin until this check passes — no face, covered camera, or multiple faces all block the start button. Reference face landmarks are captured for later comparison.
 
-During the quiz, the camera keeps running in a small preview window. Every few seconds the system checks what it sees. Certain behaviours add points to the student's anti-cheat score for that attempt.
+During the quiz, the camera keeps running in a small preview window. FaceMesh runs continuously and checks for missing faces, multiple faces, gaze direction (using iris landmark positions), and face identity changes (using structural ratios between nose and cheek landmarks). COCO-SSD runs every 5 seconds to detect phones in the frame. Each event type has its own debounce interval to avoid flooding the server. Certain behaviours add points to the student's anti-cheat score for that attempt.
 
-| Event | Points |
-|---|---|
-| Face Not Detected | 10 |
-| Multiple Faces | 20 |
-| Looking Away | 5 |
-| Phone Detected | 25 |
-| Tab / Window Switch | 15 |
+| Event | Points | Detection Method |
+|---|---|---|
+| Face Not Detected | 10 | FaceMesh — no landmarks returned |
+| Multiple Faces | 20 | FaceMesh — more than one face in frame |
+| Looking Away | 5 | FaceMesh iris landmarks — gaze offset from center |
+| Different Face | 30 | FaceMesh — cheek/nose structural ratio drift from reference |
+| Phone Detected | 25 | COCO-SSD — "cell phone" class with >60% confidence |
+| Tab / Window Switch | 15 | Page Visibility API |
 
 Each quiz has a score threshold set by the teacher at creation time. If the student's total reaches or exceeds that threshold, the attempt is flagged. Flagging does not automatically penalise the student — it surfaces the attempt in the teacher's reports page for manual review, with a full event timeline and screenshots.
 
@@ -93,6 +95,9 @@ public/
       anticheat-monitor.js
       camera-check.js
       quiz-timer.js
+    mediapipe/           <-- FaceMesh WASM, drawing & camera utils
+    models/
+      coco-ssd/          <-- SSD MobileNet v2 weights (local)
 resources/
   views/
     layouts/
@@ -112,7 +117,6 @@ storage/
 
 ## Known Limitations
 
-- Phone detection (`phone_detected`) is defined in the config but not yet implemented in the client-side monitor. It requires a dedicated object detection model.
 - PDF export on the attempt review page is a placeholder.
 - There is no email delivery configured by default — password reset emails go to the log file.
 - The platform does not support real-time WebSocket notifications. Anti-cheat events are processed via standard HTTP requests.
