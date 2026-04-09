@@ -7,6 +7,7 @@ use App\Http\Controllers\Student\AttemptController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Student\QuizCheckController;
 use App\Http\Controllers\Student\SubjectQuizController;
+use App\Http\Controllers\Student\SuspiciousEventController;
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
 use App\Http\Controllers\Teacher\OptionController;
 use App\Http\Controllers\Teacher\QuestionController;
@@ -107,6 +108,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/attempts/{attempt}/take', [AttemptController::class, 'take'])->name('student.attempts.take');
         Route::post('/attempts/{attempt}/submit', [AttemptController::class, 'submit'])->name('student.attempts.submit');
+        Route::post('/attempts/{attempt}/event', [SuspiciousEventController::class, 'store'])->name('student.attempts.event');
         Route::get('/attempts/{attempt}/results', [AttemptController::class, 'results'])->name('student.attempts.results');
     });
 });
