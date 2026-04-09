@@ -9,7 +9,8 @@ class CameraCheck {
         this.startBtn = startBtn;
         this.stream = null;
         this.faceMesh = null;
-        this.camera = null;
+        this._rafId = null;
+        this._destroyed = false;
     }
 
     async init() {
@@ -32,6 +33,7 @@ class CameraCheck {
             this.canvas.width = this.video.clientWidth;
             this.canvas.height = this.video.clientHeight;
         } catch (err) {
+            console.error('[Muraqib] Camera error:', err);
             this.updateStatus('no-camera', 'Camera Access Required — please allow camera access and reload.');
             return;
         }
@@ -41,44 +43,69 @@ class CameraCheck {
         try {
             await this.initFaceMesh();
         } catch (err) {
+            console.error('[Muraqib] FaceMesh init error:', err);
             this.updateStatus('no-camera', 'Failed to load face detection. Please reload.');
             return;
         }
     }
 
     async initFaceMesh() {
-        // WASM/data assets served from CDN because PHP's dev server
-        // does not set the required application/wasm MIME type
-        this.faceMesh = new FaceMesh({
+        const faceMesh = new FaceMesh({
             locateFile: (file) => {
                 return 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/' + file;
             },
         });
 
-        this.faceMesh.setOptions({
+        faceMesh.setOptions({
             maxNumFaces: 1,
             refineLandmarks: true,
             minDetectionConfidence: 0.7,
             minTrackingConfidence: 0.7,
         });
 
-        this.faceMesh.onResults((results) => this.onResults(results));
+        faceMesh.onResults((results) => this.onResults(results));
 
-        this.camera = new Camera(this.video, {
-            onFrame: async () => {
-                await this.faceMesh.send({ image: this.video });
-            },
-            width: this.video.videoWidth,
-            height: this.video.videoHeight,
+        this.faceMesh = faceMesh;
+
+        // Wait for video to actually be playing
+        await this._waitForVideo();
+
+        // First send() forces WASM init — await it to catch load errors
+        await this.faceMesh.send({ image: this.video });
+
+        // WASM is ready, start continuous loop
+        this._sendFrame();
+    }
+
+    _waitForVideo() {
+        return new Promise((resolve) => {
+            const check = () => {
+                if (this.video && this.video.videoWidth > 0 && !this.video.paused) {
+                    resolve();
+                } else {
+                    setTimeout(check, 200);
+                }
+            };
+            check();
         });
+    }
 
-        await this.camera.start();
+    async _sendFrame() {
+        if (this._destroyed) return;
+        try {
+            await this.faceMesh.send({ image: this.video });
+        } catch (err) {
+            // skip frame
+        }
+        this._rafId = requestAnimationFrame(() => this._sendFrame());
     }
 
     onResults(results) {
         const ctx = this.canvas.getContext('2d');
-        const w = this.canvas.width;
-        const h = this.canvas.height;
+        const w = this.video.clientWidth;
+        const h = this.video.clientHeight;
+        if (this.canvas.width !== w) this.canvas.width = w;
+        if (this.canvas.height !== h) this.canvas.height = h;
         ctx.clearRect(0, 0, w, h);
 
         if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {

@@ -118,9 +118,8 @@
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('assets/js/quiz-timer.js') }}"></script>
-    <script src="{{ asset('assets/mediapipe/face_mesh/face_mesh.js') }}" crossorigin="anonymous"></script>
-    <script src="{{ asset('assets/mediapipe/camera_utils/camera_utils.js') }}" crossorigin="anonymous"></script>
-    <script src="{{ asset('assets/mediapipe/drawing_utils/drawing_utils.js') }}" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
     <script src="{{ asset('assets/js/anticheat-monitor.js') }}"></script>

@@ -40,9 +40,8 @@
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('assets/mediapipe/face_mesh/face_mesh.js') }}" crossorigin="anonymous"></script>
-    <script src="{{ asset('assets/mediapipe/camera_utils/camera_utils.js') }}" crossorigin="anonymous"></script>
-    <script src="{{ asset('assets/mediapipe/drawing_utils/drawing_utils.js') }}" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils" crossorigin="anonymous"></script>
     <script src="{{ asset('assets/js/camera-check.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
