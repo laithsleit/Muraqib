@@ -154,7 +154,7 @@
                 reportEndpoint: '{{ route("student.attempts.event", $attempt) }}',
                 submitEndpoint: '{{ route("student.attempts.submit", $attempt) }}',
                 csrfToken: '{{ csrf_token() }}',
-                modelUrl: '{{ asset("assets/models") }}',
+                modelUrl: '/assets/models',
             });
 
             document.getElementById('quizForm').addEventListener('submit', function () {

@@ -50,7 +50,7 @@
                 placeholderEl: document.getElementById('cameraPlaceholder'),
                 statusEl: document.getElementById('cameraStatus'),
                 startBtn: document.getElementById('startQuizBtn'),
-                modelUrl: '{{ asset("assets/models") }}',
+                modelUrl: '/assets/models',
             });
             checker.init();
         });
