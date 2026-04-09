@@ -13,9 +13,12 @@ class AntiCheatMonitor {
         this.referenceLeftRatio = null;
         this.referenceRightRatio = null;
         this.baselineGaze = null;
-        // Tolerance from baseline before "looking away" fires
+        // Tolerance from baseline before "looking away" counts
         this.gazeTolH = 0.24;
         this.gazeTolV = 0.42;
+        // Must look away for this many ms before firing event
+        this._gazeAwayStart = null;
+        this._gazeSustainMs = 1000;
         this.reportEndpoint = '';
         this.csrfToken = '';
         this.submitEndpoint = '';
@@ -55,31 +58,28 @@ class AntiCheatMonitor {
     }
 
     loadReference() {
-        const ref = window.muraqibReferenceLandmarks;
-        if (!ref || ref.length < 468) return;
+        // Load face ratios from sessionStorage (persists across page navigation)
+        try {
+            const face = JSON.parse(sessionStorage.getItem('muraqib_ref_face'));
+            if (face) {
+                this.referenceLeftRatio = face.leftRatio;
+                this.referenceRightRatio = face.rightRatio;
+                this.referenceNoseRatio = face.noseRatio;
+            }
+        } catch (e) {}
 
-        const nose = ref[1];
-        const leftCheek = ref[234];
-        const rightCheek = ref[454];
-        const faceWidth = Math.hypot(rightCheek.x - leftCheek.x, rightCheek.y - leftCheek.y);
-        if (faceWidth < 0.001) return;
-
-        const noseToLeft = Math.hypot(nose.x - leftCheek.x, nose.y - leftCheek.y);
-        const noseToRight = Math.hypot(nose.x - rightCheek.x, nose.y - rightCheek.y);
-        this.referenceLeftRatio = noseToLeft / faceWidth;
-        this.referenceRightRatio = noseToRight / faceWidth;
-        this.referenceNoseRatio = (nose.x - leftCheek.x) / (rightCheek.x - leftCheek.x);
-
-        // Load baseline gaze captured on the check page
-        if (window.muraqibReferenceGaze) {
-            this.baselineGaze = window.muraqibReferenceGaze;
-        }
+        // Load baseline gaze from sessionStorage
+        try {
+            const gaze = JSON.parse(sessionStorage.getItem('muraqib_ref_gaze'));
+            if (gaze) {
+                this.baselineGaze = gaze;
+                console.log('[Muraqib] Baseline gaze loaded:', gaze);
+            }
+        } catch (e) {}
     }
 
     async _startDetection() {
         try {
-            // WASM/data assets served from CDN because PHP's dev server
-            // does not set the required application/wasm MIME type
             this.faceMesh = new FaceMesh({
                 locateFile: (file) => {
                     return 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/' + file;
@@ -95,13 +95,8 @@ class AntiCheatMonitor {
 
             this.faceMesh.onResults((results) => this.onFaceResults(results));
 
-            // Wait for video to be ready before initializing
             await this._waitForVideo();
-
-            // Send one frame and await it to force WASM initialization
             await this.faceMesh.send({ image: this.videoElement });
-
-            // Now start the continuous loop
             this._sendFrame();
         } catch (err) {
             console.warn('[Muraqib] FaceMesh init failed:', err);
@@ -125,9 +120,7 @@ class AntiCheatMonitor {
         if (this._destroyed) return;
         try {
             await this.faceMesh.send({ image: this.videoElement });
-        } catch (err) {
-            // Skip frame on error
-        }
+        } catch (err) {}
         this._rafId = requestAnimationFrame(() => this._sendFrame());
     }
 
@@ -138,13 +131,10 @@ class AntiCheatMonitor {
             });
             this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 3000);
         } catch (err) {
-            // Phone detection runs best-effort; try CDN fallback
             try {
                 this.cocoModel = await cocoSsd.load();
                 this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 3000);
-            } catch (e) {
-                // No phone detection available
-            }
+            } catch (e) {}
         }
     }
 
@@ -158,31 +148,30 @@ class AntiCheatMonitor {
 
         const faces = results.multiFaceLandmarks || [];
 
-        // Always draw everything BEFORE reporting so screenshots include overlays
+        // Draw everything BEFORE reporting so screenshots include overlays
         for (const lm of faces) {
             this.drawFaceMesh(ctx, lm);
         }
         this.drawPhoneBoxes(ctx);
 
         if (faces.length === 0) {
+            this._gazeAwayStart = null;
             this.reportEvent('face_missing');
             return;
         }
 
         if (faces.length > 1) {
+            this._gazeAwayStart = null;
             this.reportEvent('multiple_faces');
             return;
         }
 
-        // Exactly one face
         const landmarks = faces[0];
 
-        // Looking away — iris-based gaze estimation
         if (landmarks.length >= 478) {
             this.checkGaze(landmarks);
         }
 
-        // Face changed — structural comparison
         if (this.referenceNoseRatio !== null) {
             this.checkFaceChanged(landmarks);
         }
@@ -208,39 +197,71 @@ class AntiCheatMonitor {
     }
 
     checkGaze(landmarks) {
-        // Compute current iris offsets
+        // Horizontal iris offsets
         const leftIris = landmarks[468], leftInner = landmarks[33], leftOuter = landmarks[133];
         const rightIris = landmarks[473], rightInner = landmarks[362], rightOuter = landmarks[263];
         const lx = (leftIris.x - leftInner.x) / (leftOuter.x - leftInner.x);
         const rx = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
 
+        // Vertical iris offsets — skip if eye height is too small (blink/squint)
         const leftTop = landmarks[159], leftBottom = landmarks[145];
         const rightTop = landmarks[386], rightBottom = landmarks[374];
         const leftEyeH = Math.abs(leftBottom.y - leftTop.y);
         const rightEyeH = Math.abs(rightBottom.y - rightTop.y);
-        const ly = leftEyeH > 0.001 ? (leftIris.y - leftTop.y) / leftEyeH : 0.5;
-        const ry = rightEyeH > 0.001 ? (rightIris.y - rightTop.y) / rightEyeH : 0.5;
+        const minEyeH = 0.008;
+        const eyesOpen = leftEyeH > minEyeH && rightEyeH > minEyeH;
+
+        let ly = 0.5, ry = 0.5;
+        if (eyesOpen) {
+            ly = Math.max(0, Math.min(1, (leftIris.y - leftTop.y) / leftEyeH));
+            ry = Math.max(0, Math.min(1, (rightIris.y - rightTop.y) / rightEyeH));
+        }
+
+        let isAway = false;
 
         if (this.baselineGaze) {
             const dLx = Math.abs(lx - this.baselineGaze.lx);
             const dRx = Math.abs(rx - this.baselineGaze.rx);
-            const dLy = Math.abs(ly - this.baselineGaze.ly);
-            const dRy = Math.abs(ry - this.baselineGaze.ry);
-
             const awayH = dLx > this.gazeTolH && dRx > this.gazeTolH;
-            const awayV = dLy > this.gazeTolV && dRy > this.gazeTolV;
 
-            if (awayH || awayV) {
-                console.log(`[Muraqib Gaze] FIRED ${awayH ? 'H' : 'V'} | H: dL=${dLx.toFixed(3)} dR=${dRx.toFixed(3)} (tol=${this.gazeTolH}) | V: dL=${dLy.toFixed(3)} dR=${dRy.toFixed(3)} (tol=${this.gazeTolV})`);
-                this.reportEvent('looking_away');
+            let awayV = false;
+            if (eyesOpen) {
+                const dLy = Math.abs(ly - this.baselineGaze.ly);
+                const dRy = Math.abs(ry - this.baselineGaze.ry);
+                awayV = dLy > this.gazeTolV && dRy > this.gazeTolV;
             }
+
+            isAway = awayH || awayV;
         } else {
             const awayH = (lx < 0.20 || lx > 0.80) && (rx < 0.20 || rx > 0.80);
-            const awayV = (ly < 0.10 || ly > 0.90) && (ry < 0.10 || ry > 0.90);
-            if (awayH || awayV) {
-                console.log(`[Muraqib Gaze] FIRED (no baseline) | lx=${lx.toFixed(3)} rx=${rx.toFixed(3)} ly=${ly.toFixed(3)} ry=${ry.toFixed(3)}`);
-                this.reportEvent('looking_away');
+            let awayV = false;
+            if (eyesOpen) {
+                awayV = (ly < 0.10 || ly > 0.90) && (ry < 0.10 || ry > 0.90);
             }
+            isAway = awayH || awayV;
+        }
+
+        // Sustained check — must look away for 1 second before firing
+        const now = Date.now();
+        if (isAway) {
+            if (!this._gazeAwayStart) {
+                this._gazeAwayStart = now;
+            }
+            if (now - this._gazeAwayStart >= this._gazeSustainMs) {
+                if (this.baselineGaze) {
+                    const dLx = Math.abs(lx - this.baselineGaze.lx);
+                    const dRx = Math.abs(rx - this.baselineGaze.rx);
+                    const dLy = Math.abs(ly - this.baselineGaze.ly);
+                    const dRy = Math.abs(ry - this.baselineGaze.ry);
+                    console.log(`[Muraqib Gaze] FIRED | H: dL=${dLx.toFixed(3)} dR=${dRx.toFixed(3)} (tol=${this.gazeTolH}) | V: dL=${dLy.toFixed(3)} dR=${dRy.toFixed(3)} (tol=${this.gazeTolV}) | sustained ${now - this._gazeAwayStart}ms`);
+                } else {
+                    console.log(`[Muraqib Gaze] FIRED (no baseline) | lx=${lx.toFixed(3)} rx=${rx.toFixed(3)} ly=${ly.toFixed(3)} ry=${ry.toFixed(3)} | sustained ${now - this._gazeAwayStart}ms`);
+                }
+                this.reportEvent('looking_away');
+                this._gazeAwayStart = null;
+            }
+        } else {
+            this._gazeAwayStart = null;
         }
     }
 
@@ -269,17 +290,14 @@ class AntiCheatMonitor {
 
         try {
             const predictions = await this.cocoModel.detect(this.videoElement);
-            // "cell phone" and "remote" — COCO-SSD often classifies phones as remotes
             const phones = predictions.filter(
                 p => (p.class === 'cell phone' || p.class === 'remote') && p.score > 0.4
             );
 
-            // Store phone bounding boxes for drawing on next face result frame
             const vw = this.videoElement.clientWidth;
             const vh = this.videoElement.clientHeight;
             const vidW = this.videoElement.videoWidth;
             const vidH = this.videoElement.videoHeight;
-            // Store both display-scaled and native-resolution boxes
             this._phoneBoxes = phones.map(p => ({
                 x: p.bbox[0] * (vw / vidW),
                 y: p.bbox[1] * (vh / vidH),
@@ -298,26 +316,21 @@ class AntiCheatMonitor {
             }));
 
             if (phones.length > 0) {
-                // Draw boxes onto canvas NOW so the screenshot captures them
                 const ctx = this.canvasElement.getContext('2d');
                 this.drawPhoneBoxes(ctx);
                 this.reportEvent('phone_detected');
-                // Clear boxes after 3 seconds so they don't persist forever
                 setTimeout(() => { this._phoneBoxes = []; }, 3000);
             } else {
                 this._phoneBoxes = [];
             }
 
-            // Log secondary suspicious objects to console only
             const secondary = predictions.filter(
                 p => (p.class === 'laptop' || p.class === 'book') && p.score > 0.6
             );
             if (secondary.length > 0) {
                 console.log('[Muraqib] Secondary objects detected:', secondary.map(p => p.class));
             }
-        } catch (err) {
-            // Never crash the quiz
-        }
+        } catch (err) {}
     }
 
     drawPhoneBoxes(ctx) {
@@ -345,11 +358,8 @@ class AntiCheatMonitor {
             canvas.width = this.videoElement.videoWidth;
             canvas.height = this.videoElement.videoHeight;
             const ctx = canvas.getContext('2d');
-            // Draw video frame
             ctx.drawImage(this.videoElement, 0, 0);
-            // Draw the mesh/detection overlay on top so reviewers can see it
             ctx.drawImage(this.canvasElement, 0, 0, canvas.width, canvas.height);
-            // Draw phone boxes at native resolution for clear visibility
             if (this._phoneBoxesNative && this._phoneBoxesNative.length > 0) {
                 for (const box of this._phoneBoxesNative) {
                     ctx.strokeStyle = '#ef4444';
@@ -402,9 +412,7 @@ class AntiCheatMonitor {
                 const data = await response.json();
                 this.showEventAlert(eventType, data.flagged);
             }
-        } catch (err) {
-            // Fail silently
-        }
+        } catch (err) {}
     }
 
     showEventAlert(eventType, flagged) {

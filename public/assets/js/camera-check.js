@@ -137,8 +137,18 @@ class CameraCheck {
                 const lm = results.multiFaceLandmarks[0];
                 window.muraqibReferenceLandmarks = lm;
 
-                // Capture baseline gaze — what "looking at screen" looks like
-                // for this user on this screen at this distance
+                // Compute and persist reference face ratios for identity check
+                const nose = lm[1], leftCheek = lm[234], rightCheek = lm[454];
+                const fw = Math.hypot(rightCheek.x - leftCheek.x, rightCheek.y - leftCheek.y);
+                if (fw > 0.001) {
+                    sessionStorage.setItem('muraqib_ref_face', JSON.stringify({
+                        leftRatio: Math.hypot(nose.x - leftCheek.x, nose.y - leftCheek.y) / fw,
+                        rightRatio: Math.hypot(nose.x - rightCheek.x, nose.y - rightCheek.y) / fw,
+                        noseRatio: (nose.x - leftCheek.x) / (rightCheek.x - leftCheek.x),
+                    }));
+                }
+
+                // Capture and persist baseline gaze
                 if (lm.length >= 478) {
                     const leftIris = lm[468], leftInner = lm[33], leftOuter = lm[133];
                     const rightIris = lm[473], rightInner = lm[362], rightOuter = lm[263];
@@ -149,10 +159,12 @@ class CameraCheck {
                     const rx = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
                     const leftEyeH = Math.abs(leftBottom.y - leftTop.y);
                     const rightEyeH = Math.abs(rightBottom.y - rightTop.y);
-                    const ly = leftEyeH > 0.001 ? (leftIris.y - leftTop.y) / leftEyeH : 0.5;
-                    const ry = rightEyeH > 0.001 ? (rightIris.y - rightTop.y) / rightEyeH : 0.5;
+                    const ly = leftEyeH > 0.005 ? (leftIris.y - leftTop.y) / leftEyeH : 0.5;
+                    const ry = rightEyeH > 0.005 ? (rightIris.y - rightTop.y) / rightEyeH : 0.5;
 
-                    window.muraqibReferenceGaze = { lx, rx, ly, ry };
+                    const gaze = { lx, rx, ly, ry };
+                    window.muraqibReferenceGaze = gaze;
+                    sessionStorage.setItem('muraqib_ref_gaze', JSON.stringify(gaze));
                 }
 
                 this.updateStatus('ok', 'Camera check passed — face registered');
