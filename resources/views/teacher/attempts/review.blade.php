@@ -60,8 +60,10 @@
 
     @if($attempt->is_flagged)
         <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Flagged:</strong> {{ $attempt->flag_reason }}</div>
+    @elseif($attempt->anticheat_score > 0)
+        <div class="alert alert-warning"><i class="bi bi-exclamation-circle me-2"></i>Suspicious activity detected (score: {{ $attempt->anticheat_score }}/{{ $quiz->score_threshold }}) but threshold not reached.</div>
     @else
-        <div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>No suspicious activity threshold exceeded.</div>
+        <div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>No suspicious activity detected during this attempt.</div>
     @endif
 
     <div class="card mb-4">

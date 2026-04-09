@@ -96,7 +96,7 @@ Route::middleware('auth')->group(function () {
         // Attempts
         Route::get('/quizzes/{quiz}/attempts', [TeacherAttemptController::class, 'index'])->name('teacher.attempts.index');
         Route::get('/attempts/{attempt}/review', [TeacherAttemptController::class, 'review'])->name('teacher.attempts.review');
-        Route::get('/screenshots/{event}', [ScreenshotController::class, 'show'])->name('teacher.screenshots.show');
+        Route::get('/screenshots/{suspicious_event}', [ScreenshotController::class, 'show'])->name('teacher.screenshots.show');
 
         Route::get('/anticheat-guide', function () {
             return view('teacher.anticheat-guide');

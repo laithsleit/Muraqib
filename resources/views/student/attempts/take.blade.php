@@ -9,7 +9,16 @@
 @section('content')
     <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;"></div>
 
-    <div class="row g-4">
+    <div id="cameraBlockOverlay" class="camera-block-overlay" style="display: none;">
+        <div class="text-center">
+            <i class="bi bi-camera-video-off" style="font-size: 3rem; color: var(--danger);"></i>
+            <h4 class="fw-bold mt-3">Camera Access Required</h4>
+            <p class="text-muted mb-3" style="max-width: 400px;">Your browser blocked camera access. This quiz requires an active camera for monitoring. Please allow camera access or use HTTPS and reload the page.</p>
+            <a href="{{ route('student.quizzes.index', $quiz->subject) }}" class="btn btn-outline-primary">Back to Quizzes</a>
+        </div>
+    </div>
+
+    <div id="quizContent" class="row g-4">
         <div class="col-lg-8">
             <h5 class="fw-bold mb-1">{{ $quiz->title }}</h5>
             @php $answeredCount = $existingAnswers->filter(fn($v) => $v !== null)->count(); @endphp
@@ -107,7 +116,16 @@
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="{{ asset('assets/js/anticheat-monitor.js') }}"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', async function () {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('monitorVideo').srcObject = stream;
+            } catch (err) {
+                document.getElementById('cameraBlockOverlay').style.display = 'flex';
+                document.getElementById('quizContent').style.display = 'none';
+                return;
+            }
+
             const endTime = {{ $endTime->timestamp }};
             const timer = new QuizTimer({
                 endTimestamp: endTime,

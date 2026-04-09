@@ -8,16 +8,16 @@ use Illuminate\Support\Facades\Storage;
 
 class ScreenshotController extends Controller
 {
-    public function show(SuspiciousEvent $event)
+    public function show(SuspiciousEvent $suspiciousEvent)
     {
-        abort_unless($event->attempt->quiz->subject->teacher_id === auth()->id(), 403);
+        abort_unless($suspiciousEvent->attempt->quiz->subject->teacher_id === auth()->id(), 403);
 
-        if (!$event->screenshot_path || !Storage::disk(config('anticheat.screenshot_disk'))->exists($event->screenshot_path)) {
+        if (!$suspiciousEvent->screenshot_path || !Storage::disk(config('anticheat.screenshot_disk'))->exists($suspiciousEvent->screenshot_path)) {
             abort(404);
         }
 
         return response(
-            Storage::disk(config('anticheat.screenshot_disk'))->get($event->screenshot_path),
+            Storage::disk(config('anticheat.screenshot_disk'))->get($suspiciousEvent->screenshot_path),
             200,
             ['Content-Type' => 'image/jpeg']
         );

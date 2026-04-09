@@ -20,11 +20,17 @@ class QuizController extends Controller
         $this->authorizeTeacher($subject);
 
         $quizzes = $subject->quizzes()
-            ->withCount(['questions', 'attempts' => fn ($q) => $q->where('is_flagged', true)])
+            ->withCount([
+                'questions',
+                'attempts as total_attempts_count',
+                'attempts as flagged_attempts_count' => fn ($q) => $q->where('is_flagged', true),
+            ])
             ->latest()
             ->get();
 
-        return view('teacher.quizzes.index', compact('subject', 'quizzes'));
+        $studentsCount = $subject->students()->count();
+
+        return view('teacher.quizzes.index', compact('subject', 'quizzes', 'studentsCount'));
     }
 
     public function create(Subject $subject)

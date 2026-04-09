@@ -27,6 +27,8 @@
                                 <th>Title</th>
                                 <th>Duration</th>
                                 <th>Questions</th>
+                                <th>Students</th>
+                                <th>Attempts</th>
                                 <th>Threshold</th>
                                 <th>Status</th>
                                 <th>Flagged</th>
@@ -39,6 +41,8 @@
                                     <td class="fw-semibold">{{ $quiz->title }}</td>
                                     <td>{{ $quiz->duration_minutes }} min</td>
                                     <td>{{ $quiz->questions_count }}</td>
+                                    <td>{{ $studentsCount }}</td>
+                                    <td>{{ $quiz->total_attempts_count }}</td>
                                     <td>{{ $quiz->score_threshold }}</td>
                                     <td>
                                         @if($quiz->is_published)
@@ -48,8 +52,8 @@
                                         @endif
                                     </td>
                                     <td>
-                                        @if($quiz->attempts_count > 0)
-                                            <span class="badge-flagged">{{ $quiz->attempts_count }}</span>
+                                        @if($quiz->flagged_attempts_count > 0)
+                                            <span class="badge-flagged">{{ $quiz->flagged_attempts_count }}</span>
                                         @else
                                             <span class="text-muted">0</span>
                                         @endif
