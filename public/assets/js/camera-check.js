@@ -11,6 +11,7 @@ class CameraCheck {
         this.stream = null;
         this.interval = null;
         this.modelsLoaded = false;
+        this.displaySize = null;
     }
 
     async init() {
@@ -43,11 +44,17 @@ class CameraCheck {
 
         await new Promise(resolve => {
             this.video.onloadedmetadata = () => {
-                this.canvas.width = this.video.videoWidth;
-                this.canvas.height = this.video.videoHeight;
+                this.video.play();
                 resolve();
             };
         });
+
+        // Wait a frame for the video element to have display dimensions
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
+        this.displaySize = { width: this.video.clientWidth, height: this.video.clientHeight };
+        this.canvas.width = this.displaySize.width;
+        this.canvas.height = this.displaySize.height;
     }
 
     async loadModels() {
@@ -71,9 +78,21 @@ class CameraCheck {
                 .withFaceLandmarks()
                 .withFaceDescriptors();
 
-            const dims = faceapi.matchDimensions(this.canvas, this.video, true);
-            const resized = faceapi.resizeResults(detections, dims);
-            faceapi.draw.drawFaceLandmarks(this.canvas, resized);
+            const resized = faceapi.resizeResults(detections, this.displaySize);
+
+            resized.forEach(det => {
+                const box = det.detection.box;
+                ctx.strokeStyle = '#4f46e5';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+                det.landmarks.positions.forEach(pt => {
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, 1.5, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#06b6d4';
+                    ctx.fill();
+                });
+            });
 
             if (detections.length === 0) {
                 this.updateStatus('no-face', 'No face detected — position yourself in front of the camera');

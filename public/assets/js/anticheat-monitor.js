@@ -127,18 +127,34 @@ class AntiCheatMonitor {
     }
 
     drawOverlay(detections) {
-        if (!this.canvasElement) return;
+        if (!this.canvasElement || !this.videoElement) return;
         const ctx = this.canvasElement.getContext('2d');
-        ctx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
 
+        // Sync canvas internal size to video display size
+        const vw = this.videoElement.clientWidth;
+        const vh = this.videoElement.clientHeight;
+        if (this.canvasElement.width !== vw) this.canvasElement.width = vw;
+        if (this.canvasElement.height !== vh) this.canvasElement.height = vh;
+
+        ctx.clearRect(0, 0, vw, vh);
         if (detections.length === 0) return;
 
-        const dims = {
-            width: this.canvasElement.width,
-            height: this.canvasElement.height,
-        };
-        const resized = faceapi.resizeResults(detections, dims);
-        faceapi.draw.drawFaceLandmarks(this.canvasElement, resized);
+        const displaySize = { width: vw, height: vh };
+        const resized = faceapi.resizeResults(detections, displaySize);
+
+        resized.forEach(det => {
+            const box = det.detection.box;
+            ctx.strokeStyle = '#4f46e5';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+            det.landmarks.positions.forEach(pt => {
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 1, 0, 2 * Math.PI);
+                ctx.fillStyle = '#06b6d4';
+                ctx.fill();
+            });
+        });
     }
 
     captureScreenshot() {
