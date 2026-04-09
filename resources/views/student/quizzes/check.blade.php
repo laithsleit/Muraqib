@@ -1,0 +1,61 @@
+@extends('layouts.minimal')
+@section('title', 'Camera Check — Muraqib')
+
+@section('nav-right')
+    <a href="{{ route('student.quizzes.index', $quiz->subject) }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Back</a>
+@endsection
+
+@push('head')
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+@endpush
+
+@section('content')
+    <div class="row justify-content-center">
+        <div class="col-lg-6 text-center">
+            <h4 class="fw-bold mb-1">{{ $quiz->title }}</h4>
+            <p class="text-muted mb-4">Duration: {{ $quiz->duration_minutes }} minutes</p>
+
+            {{-- Camera preview --}}
+            <div class="camera-preview-box mx-auto mb-3">
+                <video id="cameraVideo" autoplay muted playsinline></video>
+                <div id="cameraPlaceholder" class="camera-placeholder">
+                    <i class="bi bi-camera-video fs-1 text-muted"></i>
+                    <p class="text-muted small mt-2 mb-0">Initializing camera...</p>
+                </div>
+            </div>
+
+            {{-- Status --}}
+            <div id="cameraStatus" class="mb-4">
+                <span class="badge bg-secondary">Checking camera...</span>
+            </div>
+
+            {{-- Start quiz form --}}
+            <form action="{{ route('student.quizzes.start', $quiz) }}" method="POST">
+                @csrf
+                <button type="submit" id="startQuizBtn" class="btn btn-primary btn-lg px-5" disabled>
+                    <i class="bi bi-play-fill me-1"></i> Start Quiz
+                </button>
+            </form>
+
+            <p class="text-muted small mt-3" style="max-width: 400px; margin: 0 auto;">
+                <i class="bi bi-info-circle me-1"></i>
+                Your camera will remain active during the quiz to monitor for suspicious behaviour.
+            </p>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    <script src="{{ asset('assets/js/camera-check.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const checker = new CameraCheck({
+                videoEl: document.getElementById('cameraVideo'),
+                placeholderEl: document.getElementById('cameraPlaceholder'),
+                statusEl: document.getElementById('cameraStatus'),
+                startBtn: document.getElementById('startQuizBtn'),
+            });
+            checker.init();
+        });
+    </script>
+@endpush
