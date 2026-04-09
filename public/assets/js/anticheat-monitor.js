@@ -68,9 +68,11 @@ class AntiCheatMonitor {
 
     async _startDetection() {
         try {
+            // WASM/data assets served from CDN because PHP's dev server
+            // does not set the required application/wasm MIME type
             this.faceMesh = new FaceMesh({
                 locateFile: (file) => {
-                    return '/assets/mediapipe/face_mesh/' + file;
+                    return 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/' + file;
                 },
             });
 
