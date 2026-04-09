@@ -16,9 +16,16 @@ class AttemptController extends Controller
         abort_unless($attempt->isInProgress(), 404);
 
         $quiz = $attempt->quiz;
+        $endTime = $attempt->started_at->addMinutes($quiz->duration_minutes);
+
+        // If time expired (e.g. tab was closed and student came back), submit
+        if ($endTime->isPast()) {
+            app(SubmitAttemptAction::class)->execute($attempt, []);
+            return redirect()->route('student.attempts.results', $attempt);
+        }
+
         $questions = $quiz->questions()->with('options')->orderBy('order')->get();
         $existingAnswers = $attempt->answers()->pluck('selected_option_id', 'question_id');
-        $endTime = $attempt->started_at->addMinutes($quiz->duration_minutes);
 
         return view('student.attempts.take', compact('attempt', 'quiz', 'questions', 'existingAnswers', 'endTime'));
     }

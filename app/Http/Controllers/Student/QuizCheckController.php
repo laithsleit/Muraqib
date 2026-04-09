@@ -24,15 +24,8 @@ class QuizCheckController extends Controller
             ->first();
 
         if ($inProgress) {
-            $endTime = $inProgress->started_at->addMinutes($quiz->duration_minutes);
-
-            if ($endTime->isPast()) {
-                // Time expired — submit with whatever answers were auto-saved
-                app(SubmitAttemptAction::class)->execute($inProgress, []);
-            } else {
-                // Still has time — redirect back to the quiz
-                return redirect()->route('student.attempts.take', $inProgress);
-            }
+            // Landing here means the student navigated away — submit with auto-saved answers
+            app(SubmitAttemptAction::class)->execute($inProgress, []);
         }
 
         $submitted = Attempt::where('quiz_id', $quiz->id)
