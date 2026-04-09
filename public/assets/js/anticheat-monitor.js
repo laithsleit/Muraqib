@@ -15,7 +15,7 @@ class AntiCheatMonitor {
         this.baselineGaze = null;
         // Tolerance from baseline before "looking away" fires
         this.gazeTolH = 0.28;
-        this.gazeTolV = 0.42;
+        this.gazeTolV = 0.50;
         this.reportEndpoint = '';
         this.csrfToken = '';
         this.submitEndpoint = '';
@@ -136,12 +136,12 @@ class AntiCheatMonitor {
             this.cocoModel = await cocoSsd.load({
                 modelUrl: '/assets/models/coco-ssd/model.json',
             });
-            this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 5000);
+            this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 3000);
         } catch (err) {
             // Phone detection runs best-effort; try CDN fallback
             try {
                 this.cocoModel = await cocoSsd.load();
-                this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 5000);
+                this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 3000);
             } catch (e) {
                 // No phone detection available
             }
@@ -158,24 +158,24 @@ class AntiCheatMonitor {
 
         const faces = results.multiFaceLandmarks || [];
 
+        // Always draw everything BEFORE reporting so screenshots include overlays
+        for (const lm of faces) {
+            this.drawFaceMesh(ctx, lm);
+        }
+        this.drawPhoneBoxes(ctx);
+
         if (faces.length === 0) {
-            this.drawPhoneBoxes(ctx);
             this.reportEvent('face_missing');
             return;
         }
 
         if (faces.length > 1) {
             this.reportEvent('multiple_faces');
-            for (const landmarks of faces) {
-                this.drawFaceMesh(ctx, landmarks);
-            }
-            this.drawPhoneBoxes(ctx);
             return;
         }
 
         // Exactly one face
         const landmarks = faces[0];
-        this.drawFaceMesh(ctx, landmarks);
 
         // Looking away — iris-based gaze estimation
         if (landmarks.length >= 478) {
@@ -186,9 +186,6 @@ class AntiCheatMonitor {
         if (this.referenceNoseRatio !== null) {
             this.checkFaceChanged(landmarks);
         }
-
-        // Draw phone detection boxes on top
-        this.drawPhoneBoxes(ctx);
     }
 
     drawFaceMesh(ctx, landmarks) {
@@ -224,6 +221,21 @@ class AntiCheatMonitor {
         const ly = leftEyeH > 0.001 ? (leftIris.y - leftTop.y) / leftEyeH : 0.5;
         const ry = rightEyeH > 0.001 ? (rightIris.y - rightTop.y) / rightEyeH : 0.5;
 
+        // Debug: log gaze values every 2 seconds (throttled)
+        const now = Date.now();
+        if (!this._lastGazeLog || now - this._lastGazeLog > 2000) {
+            this._lastGazeLog = now;
+            if (this.baselineGaze) {
+                const dLx = Math.abs(lx - this.baselineGaze.lx);
+                const dRx = Math.abs(rx - this.baselineGaze.rx);
+                const dLy = Math.abs(ly - this.baselineGaze.ly);
+                const dRy = Math.abs(ry - this.baselineGaze.ry);
+                console.log(`[Muraqib Gaze] H: dL=${dLx.toFixed(3)} dR=${dRx.toFixed(3)} (tol=${this.gazeTolH}) | V: dL=${dLy.toFixed(3)} dR=${dRy.toFixed(3)} (tol=${this.gazeTolV}) | baseline: lx=${this.baselineGaze.lx.toFixed(3)} ly=${this.baselineGaze.ly.toFixed(3)} | now: lx=${lx.toFixed(3)} ly=${ly.toFixed(3)}`);
+            } else {
+                console.log(`[Muraqib Gaze] No baseline | lx=${lx.toFixed(3)} rx=${rx.toFixed(3)} ly=${ly.toFixed(3)} ry=${ry.toFixed(3)}`);
+            }
+        }
+
         if (this.baselineGaze) {
             // Compare against personal baseline captured on check page
             const dLx = Math.abs(lx - this.baselineGaze.lx);
@@ -235,6 +247,7 @@ class AntiCheatMonitor {
             const awayV = dLy > this.gazeTolV && dRy > this.gazeTolV;
 
             if (awayH || awayV) {
+                console.log(`[Muraqib Gaze] TRIGGERED: ${awayH ? 'horizontal' : 'vertical'}`);
                 this.reportEvent('looking_away');
             }
         } else {
@@ -242,6 +255,7 @@ class AntiCheatMonitor {
             const awayH = (lx < 0.20 || lx > 0.80) && (rx < 0.20 || rx > 0.80);
             const awayV = (ly < 0.10 || ly > 0.90) && (ry < 0.10 || ry > 0.90);
             if (awayH || awayV) {
+                console.log(`[Muraqib Gaze] TRIGGERED (no baseline): lx=${lx.toFixed(3)} ly=${ly.toFixed(3)}`);
                 this.reportEvent('looking_away');
             }
         }
@@ -272,7 +286,10 @@ class AntiCheatMonitor {
 
         try {
             const predictions = await this.cocoModel.detect(this.videoElement);
-            const phones = predictions.filter(p => p.class === 'cell phone' && p.score > 0.6);
+            // "cell phone" and "remote" — COCO-SSD often classifies phones as remotes
+            const phones = predictions.filter(
+                p => (p.class === 'cell phone' || p.class === 'remote') && p.score > 0.4
+            );
 
             // Store phone bounding boxes for drawing on next face result frame
             const vw = this.videoElement.clientWidth;
@@ -286,6 +303,7 @@ class AntiCheatMonitor {
                 w: p.bbox[2] * (vw / vidW),
                 h: p.bbox[3] * (vh / vidH),
                 score: p.score,
+                label: p.class,
             }));
             this._phoneBoxesNative = phones.map(p => ({
                 x: p.bbox[0],
@@ -293,6 +311,7 @@ class AntiCheatMonitor {
                 w: p.bbox[2],
                 h: p.bbox[3],
                 score: p.score,
+                label: p.class,
             }));
 
             if (phones.length > 0) {
@@ -326,9 +345,10 @@ class AntiCheatMonitor {
             ctx.strokeRect(box.x, box.y, box.w, box.h);
             ctx.setLineDash([]);
 
+            const label = (box.label === 'remote' ? 'Phone/Remote' : 'Phone')
+                + ' ' + Math.round(box.score * 100) + '%';
             ctx.fillStyle = 'rgba(239, 68, 68, 0.7)';
             ctx.font = 'bold 11px sans-serif';
-            const label = 'Phone ' + Math.round(box.score * 100) + '%';
             const tw = ctx.measureText(label).width;
             ctx.fillRect(box.x, box.y - 16, tw + 8, 16);
             ctx.fillStyle = '#fff';
@@ -357,7 +377,8 @@ class AntiCheatMonitor {
 
                     ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
                     ctx.font = 'bold 16px sans-serif';
-                    const label = 'Phone ' + Math.round(box.score * 100) + '%';
+                    const label = (box.label === 'remote' ? 'Phone/Remote' : 'Phone')
+                        + ' ' + Math.round(box.score * 100) + '%';
                     const tw = ctx.measureText(label).width;
                     ctx.fillRect(box.x, box.y - 22, tw + 10, 22);
                     ctx.fillStyle = '#fff';
