@@ -43,7 +43,7 @@ class AntiCheatMonitor {
         if (config.screenshotQuality) this.screenshotQuality = config.screenshotQuality;
 
         this.loadReference();
-        this.initFaceMesh();
+        this._startDetection();
         this.initCocoSsd();
         this.bindTabSwitch();
         this.bindAutoSubmitOnLeave();
@@ -66,7 +66,7 @@ class AntiCheatMonitor {
         this.referenceNoseRatio = (nose.x - leftCheek.x) / (rightCheek.x - leftCheek.x);
     }
 
-    async initFaceMesh() {
+    async _startDetection() {
         try {
             this.faceMesh = new FaceMesh({
                 locateFile: (file) => {
@@ -83,22 +83,38 @@ class AntiCheatMonitor {
 
             this.faceMesh.onResults((results) => this.onFaceResults(results));
 
-            // Use requestAnimationFrame loop instead of Camera helper
-            // because the video stream is already running from the page script
+            // Wait for video to be ready before initializing
+            await this._waitForVideo();
+
+            // Send one frame and await it to force WASM initialization
+            await this.faceMesh.send({ image: this.videoElement });
+
+            // Now start the continuous loop
             this._sendFrame();
         } catch (err) {
-            // Face detection runs best-effort
+            console.warn('[Muraqib] FaceMesh init failed:', err);
         }
+    }
+
+    _waitForVideo() {
+        return new Promise((resolve) => {
+            const check = () => {
+                if (this.videoElement && this.videoElement.videoWidth > 0 && !this.videoElement.paused) {
+                    resolve();
+                } else {
+                    setTimeout(check, 200);
+                }
+            };
+            check();
+        });
     }
 
     async _sendFrame() {
         if (this._destroyed) return;
-        if (this.faceMesh && this.videoElement && this.videoElement.videoWidth > 0) {
-            try {
-                await this.faceMesh.send({ image: this.videoElement });
-            } catch (err) {
-                // Skip frame on error
-            }
+        try {
+            await this.faceMesh.send({ image: this.videoElement });
+        } catch (err) {
+            // Skip frame on error
         }
         this._rafId = requestAnimationFrame(() => this._sendFrame());
     }
