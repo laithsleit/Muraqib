@@ -5,9 +5,6 @@
     <a href="{{ route('student.quizzes.index', $quiz->subject) }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i> Back</a>
 @endsection
 
-@push('head')
-    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-@endpush
 
 @section('content')
     <div class="row justify-content-center">
@@ -43,6 +40,7 @@
 @endsection
 
 @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="{{ asset('assets/js/camera-check.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {

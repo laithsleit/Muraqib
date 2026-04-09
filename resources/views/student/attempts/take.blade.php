@@ -5,9 +5,6 @@
     <span class="text-muted small">{{ auth()->user()->name }}</span>
 @endsection
 
-@push('head')
-    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-@endpush
 
 @section('content')
     <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;"></div>
@@ -107,6 +104,7 @@
 
 @push('scripts')
     <script src="{{ asset('assets/js/quiz-timer.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script src="{{ asset('assets/js/anticheat-monitor.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
