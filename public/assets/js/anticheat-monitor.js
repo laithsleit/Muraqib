@@ -214,9 +214,9 @@ class AntiCheatMonitor {
         const rightOuter = landmarks[263];
         const rightOffsetX = (rightIris.x - rightOuter.x) / (rightInner.x - rightOuter.x);
 
-        // Widened horizontal thresholds to allow natural screen-reading eye movement
-        const lookingAwayH = (leftOffsetX < 0.28 || leftOffsetX > 0.72) &&
-                             (rightOffsetX < 0.28 || rightOffsetX > 0.72);
+        // Wide horizontal thresholds — students read questions across the screen
+        const lookingAwayH = (leftOffsetX < 0.20 || leftOffsetX > 0.80) &&
+                             (rightOffsetX < 0.20 || rightOffsetX > 0.80);
 
         // Vertical check — iris Y relative to eye top/bottom
         const leftTop = landmarks[159];
@@ -233,9 +233,9 @@ class AntiCheatMonitor {
             ? (rightIris.y - rightTop.y) / rightEyeH
             : 0.5;
 
-        // Widened vertical thresholds to allow reading top/bottom of screen
-        const lookingAwayV = (leftOffsetY < 0.15 || leftOffsetY > 0.85) &&
-                             (rightOffsetY < 0.15 || rightOffsetY > 0.85);
+        // Wide vertical thresholds — students look up/down to read questions
+        const lookingAwayV = (leftOffsetY < 0.10 || leftOffsetY > 0.90) &&
+                             (rightOffsetY < 0.10 || rightOffsetY > 0.90);
 
         if (lookingAwayH || lookingAwayV) {
             this.reportEvent('looking_away');
