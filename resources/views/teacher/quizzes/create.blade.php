@@ -38,10 +38,7 @@
                         @error('duration_minutes') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-4 d-flex align-items-end">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="is_published" name="is_published" value="1" {{ old('is_published') ? 'checked' : '' }}>
-                            <label class="form-check-label" for="is_published">Published</label>
-                        </div>
+                        <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Add questions after creating, then publish.</span>
                     </div>
                 </div>
             </div>

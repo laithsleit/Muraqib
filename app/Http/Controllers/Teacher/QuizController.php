@@ -43,10 +43,10 @@ class QuizController extends Controller
     public function store(StoreQuizRequest $request, Subject $subject, CreateQuizAction $action)
     {
         $this->authorizeTeacher($subject);
-        $action->execute($subject, $request->validated());
+        $quiz = $action->execute($subject, $request->validated());
 
-        return redirect()->route('teacher.quizzes.index', $subject)
-            ->with('success', 'Quiz created.');
+        return redirect()->route('teacher.questions.index', $quiz)
+            ->with('success', 'Quiz created — now add your questions.');
     }
 
     public function edit(Subject $subject, Quiz $quiz)

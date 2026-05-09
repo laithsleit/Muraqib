@@ -16,6 +16,7 @@ class SubjectQuizController extends Controller
 
         $quizzes = $subject->quizzes()
             ->where('is_published', true)
+            ->has('questions')
             ->withCount('questions')
             ->get();
 

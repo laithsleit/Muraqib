@@ -14,7 +14,7 @@ class CreateQuizAction
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'duration_minutes' => $data['duration_minutes'],
-            'is_published' => $data['is_published'] ?? false,
+            'is_published' => false,
             'score_threshold' => $data['score_threshold'],
         ]);
     }

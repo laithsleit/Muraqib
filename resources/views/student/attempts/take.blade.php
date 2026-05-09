@@ -204,6 +204,15 @@
                 e.preventDefault();
                 e.returnValue = 'Your quiz is still in progress. Leaving will submit your current answers.';
             });
+
+            // Submit on tab close / navigate away, but NOT on reload
+            window.addEventListener('pagehide', function () {
+                if (window._muraqibSubmitting) return;
+                const nav = performance.getEntriesByType('navigation')[0];
+                if (nav && nav.type === 'reload') return;
+                const fd = new FormData(document.getElementById('quizForm'));
+                navigator.sendBeacon('{{ route("student.attempts.submit", $attempt) }}', fd);
+            });
         });
     </script>
 @endpush
