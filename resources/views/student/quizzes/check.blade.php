@@ -40,7 +40,7 @@
 @endsection
 
 @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh" crossorigin="anonymous"></script>
+    <script src="{{ asset('assets/mediapipe/face_mesh/face_mesh.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils" crossorigin="anonymous"></script>
     <script src="{{ asset('assets/js/camera-check.js') }}?timestamp={{ time() }}"></script>
     <script>

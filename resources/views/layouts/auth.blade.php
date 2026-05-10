@@ -4,19 +4,23 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="description" content="@yield('description', 'Muraqib — AI-proctored online exams with live face, gaze and phone detection for teachers and students.')">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <title>@yield('title', 'Muraqib')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ asset('assets/vendor/bootstrap-icons/bootstrap-icons.min.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="{{ asset('assets/img/logo.svg') }}">
 </head>
 <body>
-    <div class="auth-wrapper">
+    <main class="auth-wrapper">
         <a href="/" class="auth-back-link"><i class="bi bi-arrow-left"></i> Back to Home</a>
         <div class="auth-card">
             <a href="/" class="auth-logo text-decoration-none">
-                <img src="{{ asset('assets/img/logo.svg') }}" alt="Muraqib">
+                <img src="{{ asset('assets/img/logo.svg') }}" alt="" width="32" height="32">
                 <span>Muraqib</span>
             </a>
             <p class="text-muted text-center small mb-4">Smart Quiz Monitoring Platform</p>
@@ -25,7 +29,7 @@
 
             <p class="text-center text-muted mt-4 mb-0" style="font-size: 0.75rem;">&copy; {{ date('Y') }} Muraqib</p>
         </div>
-    </div>
+    </main>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

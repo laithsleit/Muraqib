@@ -36,7 +36,7 @@
                         <div class="feature-icon icon-primary">
                             <i class="bi bi-pencil-square"></i>
                         </div>
-                        <h5 class="fw-bold mb-2">Smart Quizzes</h5>
+                        <h3 class="h5 fw-bold mb-2">Smart Quizzes</h3>
                         <p class="text-muted mb-0" style="font-size: 0.9rem;">Create quizzes with time limits, anti-cheat monitoring, and automatic grading. Flexible enough for any course.</p>
                     </div>
                 </div>
@@ -45,7 +45,7 @@
                         <div class="feature-icon icon-accent">
                             <i class="bi bi-shield-check"></i>
                         </div>
-                        <h5 class="fw-bold mb-2">Anti-Cheat Monitoring</h5>
+                        <h3 class="h5 fw-bold mb-2">Anti-Cheat Monitoring</h3>
                         <p class="text-muted mb-0" style="font-size: 0.9rem;">Real-time detection of tab switches, face anomalies, and phone usage. Automatic flagging keeps assessments fair.</p>
                     </div>
                 </div>
@@ -54,7 +54,7 @@
                         <div class="feature-icon icon-success">
                             <i class="bi bi-graph-up"></i>
                         </div>
-                        <h5 class="fw-bold mb-2">Instant Reports</h5>
+                        <h3 class="h5 fw-bold mb-2">Instant Reports</h3>
                         <p class="text-muted mb-0" style="font-size: 0.9rem;">Detailed analytics and integrity reports at a glance. Know exactly which attempts need review.</p>
                     </div>
                 </div>
@@ -71,17 +71,17 @@
             <div class="row g-4 align-items-start">
                 <div class="col-md-4 text-center">
                     <div class="step-number mx-auto mb-3">1</div>
-                    <h5 class="fw-bold mb-2">Create a Quiz</h5>
+                    <h3 class="h5 fw-bold mb-2">Create a Quiz</h3>
                     <p class="text-muted" style="font-size: 0.9rem;">Teachers build quizzes, set time limits, and configure anti-cheat sensitivity per assessment.</p>
                 </div>
                 <div class="col-md-4 text-center">
                     <div class="step-number mx-auto mb-3">2</div>
-                    <h5 class="fw-bold mb-2">Students Take It</h5>
+                    <h3 class="h5 fw-bold mb-2">Students Take It</h3>
                     <p class="text-muted" style="font-size: 0.9rem;">Students launch the quiz. The monitoring system runs silently in the background, tracking suspicious events.</p>
                 </div>
                 <div class="col-md-4 text-center">
                     <div class="step-number mx-auto mb-3">3</div>
-                    <h5 class="fw-bold mb-2">Review Results</h5>
+                    <h3 class="h5 fw-bold mb-2">Review Results</h3>
                     <p class="text-muted" style="font-size: 0.9rem;">Teachers see scores and flagged attempts instantly. Drill into event timelines for full transparency.</p>
                 </div>
             </div>
@@ -222,7 +222,7 @@
                                 <div class="feature-icon icon-primary mx-auto">
                                     <i class="bi bi-envelope"></i>
                                 </div>
-                                <h6 class="fw-bold mb-1">Email</h6>
+                                <h3 class="h6 fw-bold mb-1">Email</h3>
                                 <p class="text-muted small mb-0">support@muraqib.com</p>
                             </div>
                         </div>
@@ -231,7 +231,7 @@
                                 <div class="feature-icon icon-accent mx-auto">
                                     <i class="bi bi-geo-alt"></i>
                                 </div>
-                                <h6 class="fw-bold mb-1">Location</h6>
+                                <h3 class="h6 fw-bold mb-1">Location</h3>
                                 <p class="text-muted small mb-0">Amman, Jordan</p>
                             </div>
                         </div>
@@ -240,7 +240,7 @@
                                 <div class="feature-icon icon-success mx-auto">
                                     <i class="bi bi-github"></i>
                                 </div>
-                                <h6 class="fw-bold mb-1">Open Source</h6>
+                                <h3 class="h6 fw-bold mb-1">Open Source</h3>
                                 <p class="text-muted small mb-0">GitHub Repository</p>
                             </div>
                         </div>
