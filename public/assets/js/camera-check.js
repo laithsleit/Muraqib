@@ -1,5 +1,7 @@
 // Pre-quiz camera verification with MediaPipe FaceMesh overlay and landmark capture
 
+const CALIBRATION_SAMPLES = 40;
+
 class CameraCheck {
     constructor({ videoEl, canvasEl, placeholderEl, statusEl, startBtn }) {
         this.video = videoEl;
@@ -11,6 +13,9 @@ class CameraCheck {
         this.faceMesh = null;
         this._rafId = null;
         this._destroyed = false;
+        this._headSamples = [];
+        this._gazeSamples = [];
+        this._calibrated = false;
     }
 
     async init() {
@@ -67,13 +72,8 @@ class CameraCheck {
 
         this.faceMesh = faceMesh;
 
-        // Wait for video to actually be playing
         await this._waitForVideo();
-
-        // First send() forces WASM init — await it to catch load errors
         await this.faceMesh.send({ image: this.video });
-
-        // WASM is ready, start continuous loop
         this._sendFrame();
     }
 
@@ -94,9 +94,7 @@ class CameraCheck {
         if (this._destroyed) return;
         try {
             await this.faceMesh.send({ image: this.video });
-        } catch (err) {
-            // skip frame
-        }
+        } catch (err) {}
         this._rafId = requestAnimationFrame(() => this._sendFrame());
     }
 
@@ -108,74 +106,145 @@ class CameraCheck {
         if (this.canvas.height !== h) this.canvas.height = h;
         ctx.clearRect(0, 0, w, h);
 
-        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-            for (const landmarks of results.multiFaceLandmarks) {
-                // Draw face mesh tessellation
-                drawConnectors(ctx, landmarks, FACEMESH_TESSELATION, {
-                    color: 'rgba(79, 70, 229, 0.3)',
-                    lineWidth: 0.5,
-                });
-
-                // Draw face contours
-                drawConnectors(ctx, landmarks, FACEMESH_FACE_OVAL, {
-                    color: '#4f46e5',
-                    lineWidth: 1.5,
-                });
-
-                // Draw iris contours in cyan
-                drawConnectors(ctx, landmarks, FACEMESH_RIGHT_IRIS, {
-                    color: '#06b6d4',
-                    lineWidth: 1.5,
-                });
-                drawConnectors(ctx, landmarks, FACEMESH_LEFT_IRIS, {
-                    color: '#06b6d4',
-                    lineWidth: 1.5,
-                });
-            }
-
-            if (results.multiFaceLandmarks.length === 1) {
-                const lm = results.multiFaceLandmarks[0];
-
-                // Save head position baseline (nose relative to face)
-                const nose = lm[1], leftCheek = lm[234], rightCheek = lm[454];
-                const forehead = lm[10], chin = lm[152];
-                const faceW = Math.abs(rightCheek.x - leftCheek.x);
-                const faceH = Math.abs(chin.y - forehead.y);
-                if (faceW > 0.01 && faceH > 0.01) {
-                    const faceCenterX = (leftCheek.x + rightCheek.x) / 2;
-                    const head = {
-                        x: (nose.x - faceCenterX) / faceW,
-                        y: (nose.y - forehead.y) / faceH,
-                    };
-                    sessionStorage.setItem('muraqib_ref_head', JSON.stringify(head));
-                }
-
-                // Save iris gaze baseline
-                if (lm.length >= 478) {
-                    const leftIris = lm[468], leftInner = lm[33], leftOuter = lm[133];
-                    const rightIris = lm[473], rightOuter = lm[263], rightInner = lm[362];
-                    const eyeW_L = Math.abs(leftOuter.x - leftInner.x);
-                    const eyeW_R = Math.abs(rightInner.x - rightOuter.x);
-
-                    if (eyeW_L > 0.005 && eyeW_R > 0.005) {
-                        const gaze = {
-                            lx: (leftIris.x - leftInner.x) / eyeW_L,
-                            rx: (rightIris.x - rightOuter.x) / eyeW_R,
-                        };
-                        sessionStorage.setItem('muraqib_ref_gaze', JSON.stringify(gaze));
-                    }
-                }
-
-                this.updateStatus('ok', 'Camera check passed — face registered');
-                this.enableStartButton(true);
-            } else {
-                this.updateStatus('multiple', 'Multiple faces detected — only one person allowed');
-                this.enableStartButton(false);
-            }
-        } else {
+        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+            this._headSamples = [];
+            this._gazeSamples = [];
             this.updateStatus('no-face', 'No face detected — position yourself in front of the camera');
             this.enableStartButton(false);
+            return;
         }
+
+        if (results.multiFaceLandmarks.length > 1) {
+            this._headSamples = [];
+            this._gazeSamples = [];
+            this.updateStatus('multiple', 'Multiple faces detected — only one person allowed');
+            this.enableStartButton(false);
+            return;
+        }
+
+        const lm = results.multiFaceLandmarks[0];
+
+        for (const landmarks of results.multiFaceLandmarks) {
+            drawConnectors(ctx, landmarks, FACEMESH_TESSELATION, {
+                color: 'rgba(79, 70, 229, 0.3)',
+                lineWidth: 0.5,
+            });
+            drawConnectors(ctx, landmarks, FACEMESH_FACE_OVAL, {
+                color: '#4f46e5',
+                lineWidth: 1.5,
+            });
+            drawConnectors(ctx, landmarks, FACEMESH_RIGHT_IRIS, {
+                color: '#06b6d4',
+                lineWidth: 1.5,
+            });
+            drawConnectors(ctx, landmarks, FACEMESH_LEFT_IRIS, {
+                color: '#06b6d4',
+                lineWidth: 1.5,
+            });
+        }
+
+        const head = this._extractHead(lm);
+        const gaze = this._extractGaze(lm);
+        if (!head) return;
+
+        this._headSamples.push(head);
+        if (gaze) this._gazeSamples.push(gaze);
+
+        if (this._headSamples.length < CALIBRATION_SAMPLES) {
+            const pct = Math.round((this._headSamples.length / CALIBRATION_SAMPLES) * 100);
+            this.updateStatus('loading', `Calibrating... ${pct}% — keep looking at the screen`);
+            this.enableStartButton(false);
+            return;
+        }
+
+        if (!this._calibrated) {
+            this._saveCalibration();
+            this._calibrated = true;
+        }
+
+        this.updateStatus('ok', 'Camera check passed — face registered');
+        this.enableStartButton(true);
+    }
+
+    _extractHead(lm) {
+        const nose = lm[1], leftCheek = lm[234], rightCheek = lm[454];
+        const forehead = lm[10], chin = lm[152];
+        const faceW = Math.abs(rightCheek.x - leftCheek.x);
+        const faceH = Math.abs(chin.y - forehead.y);
+        if (faceW <= 0.01 || faceH <= 0.01) return null;
+        const faceCenterX = (leftCheek.x + rightCheek.x) / 2;
+        return {
+            x: (nose.x - faceCenterX) / faceW,
+            y: (nose.y - forehead.y) / faceH,
+        };
+    }
+
+    _extractGaze(lm) {
+        if (lm.length < 478) return null;
+        const leftIris = lm[468], leftInner = lm[33], leftOuter = lm[133];
+        const rightIris = lm[473], rightOuter = lm[263], rightInner = lm[362];
+        const eyeW_L = Math.abs(leftOuter.x - leftInner.x);
+        const eyeW_R = Math.abs(rightInner.x - rightOuter.x);
+        if (eyeW_L <= 0.005 || eyeW_R <= 0.005) return null;
+        return {
+            lx: (leftIris.x - leftInner.x) / eyeW_L,
+            rx: (rightIris.x - rightOuter.x) / eyeW_R,
+        };
+    }
+
+    _saveCalibration() {
+        const headStats = this._stats(this._headSamples, ['x', 'y']);
+        const head = {
+            x: headStats.mean.x,
+            y: headStats.mean.y,
+            stdX: headStats.std.x,
+            stdY: headStats.std.y,
+        };
+        sessionStorage.setItem('muraqib_ref_head', JSON.stringify(head));
+
+        if (this._gazeSamples.length >= CALIBRATION_SAMPLES / 2) {
+            const gazeStats = this._stats(this._gazeSamples, ['lx', 'rx']);
+            const gaze = {
+                lx: gazeStats.mean.lx,
+                rx: gazeStats.mean.rx,
+                stdLx: gazeStats.std.lx,
+                stdRx: gazeStats.std.rx,
+            };
+            sessionStorage.setItem('muraqib_ref_gaze', JSON.stringify(gaze));
+        }
+
+        const env = {
+            viewportW: window.innerWidth,
+            viewportH: window.innerHeight,
+            screenW: window.screen ? window.screen.width : 0,
+            screenH: window.screen ? window.screen.height : 0,
+            dpr: window.devicePixelRatio || 1,
+            videoW: this.video.videoWidth,
+            videoH: this.video.videoHeight,
+            isMobile: this._isMobile(),
+            timestamp: Date.now(),
+        };
+        sessionStorage.setItem('muraqib_ref_env', JSON.stringify(env));
+
+        console.log('[Muraqib] Calibration saved:', { head, env });
+    }
+
+    _stats(samples, keys) {
+        const mean = {}, std = {};
+        for (const k of keys) {
+            const vals = samples.map(s => s[k]);
+            const m = vals.reduce((a, b) => a + b, 0) / vals.length;
+            const variance = vals.reduce((a, b) => a + (b - m) ** 2, 0) / vals.length;
+            mean[k] = m;
+            std[k] = Math.sqrt(variance);
+        }
+        return { mean, std };
+    }
+
+    _isMobile() {
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+        if (window.innerWidth <= 820) return true;
+        return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
     }
 
     updateStatus(state, message) {
