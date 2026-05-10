@@ -238,10 +238,10 @@
                         <div class="col-md-4">
                             <div class="text-center">
                                 <div class="feature-icon icon-success mx-auto">
-                                    <i class="bi bi-github"></i>
+                                    <i class="bi bi-book"></i>
                                 </div>
-                                <h3 class="h6 fw-bold mb-1">Open Source</h3>
-                                <p class="text-muted small mb-0">GitHub Repository</p>
+                                <h3 class="h6 fw-bold mb-1">Documentation</h3>
+                                <p class="text-muted small mb-0">Read the docs</p>
                             </div>
                         </div>
                     </div>
