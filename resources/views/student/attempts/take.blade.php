@@ -326,13 +326,31 @@
                 });
                 award(15, 'Ready', 'Monitoring active');
 
-                // 5. Unlock the quiz and start the timer.
+                // 5. Tell the server we're ready, get the authoritative end timestamp.
+                let endTimestamp = {{ $endTime->timestamp }};
+                try {
+                    const res = await fetch('{{ route('student.attempts.ready', $attempt) }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json',
+                        },
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.end_timestamp) endTimestamp = data.end_timestamp;
+                    }
+                } catch (e) {
+                    // Fall back to server-rendered endTime; loss is at most the loading window.
+                }
+
+                // 6. Unlock the quiz and start the timer.
                 const fieldset = document.getElementById('quizFieldset');
                 fieldset.disabled = false;
                 document.getElementById('openSubmitModalBtn').disabled = false;
 
                 const timer = new QuizTimer({
-                    endTimestamp: {{ $endTime->timestamp }},
+                    endTimestamp: endTimestamp,
                     displayEl: document.getElementById('timerDisplay'),
                     formEl: document.getElementById('quizForm'),
                 });

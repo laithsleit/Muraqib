@@ -12,6 +12,7 @@ class Attempt extends Model
         'quiz_id',
         'student_id',
         'started_at',
+        'client_ready_at',
         'submitted_at',
         'score',
         'anticheat_score',
@@ -24,8 +25,14 @@ class Attempt extends Model
         return [
             'is_flagged' => 'boolean',
             'started_at' => 'datetime',
+            'client_ready_at' => 'datetime',
             'submitted_at' => 'datetime',
         ];
+    }
+
+    public function timerStart()
+    {
+        return $this->client_ready_at ?? $this->started_at;
     }
 
     public function quiz(): BelongsTo

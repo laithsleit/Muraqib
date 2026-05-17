@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Actions\Student\SubmitAttemptAction;
 use App\Http\Controllers\Controller;
 use App\Models\Attempt;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -16,10 +17,11 @@ class AttemptController extends Controller
         abort_unless($attempt->isInProgress(), 404);
 
         $quiz = $attempt->quiz;
-        $endTime = $attempt->started_at->addMinutes($quiz->duration_minutes);
+        $endTime = $attempt->timerStart()->addMinutes($quiz->duration_minutes);
 
-        // If time expired (e.g. tab was closed and student came back), submit
-        if ($endTime->isPast()) {
+        // If time expired (e.g. tab was closed and student came back), submit.
+        // Only enforce once the timer has actually started (client_ready_at set).
+        if ($attempt->client_ready_at !== null && $endTime->isPast()) {
             app(SubmitAttemptAction::class)->execute($attempt, []);
             return redirect()->route('student.attempts.results', $attempt);
         }
@@ -28,6 +30,23 @@ class AttemptController extends Controller
         $existingAnswers = $attempt->answers()->pluck('selected_option_id', 'question_id');
 
         return view('student.attempts.take', compact('attempt', 'quiz', 'questions', 'existingAnswers', 'endTime'));
+    }
+
+    public function ready(Attempt $attempt)
+    {
+        abort_unless($attempt->student_id === Auth::id(), 403);
+        abort_unless($attempt->isInProgress(), 404);
+
+        if ($attempt->client_ready_at === null) {
+            $attempt->client_ready_at = Carbon::now();
+            $attempt->save();
+        }
+
+        $endTime = $attempt->timerStart()->addMinutes($attempt->quiz->duration_minutes);
+
+        return response()->json([
+            'end_timestamp' => $endTime->timestamp,
+        ]);
     }
 
     public function saveAnswer(Request $request, Attempt $attempt)
