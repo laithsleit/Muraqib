@@ -208,6 +208,11 @@ class AntiCheatMonitor {
     }
 
     async initCocoSsd() {
+        if (this._preloadedCocoModel) {
+            this.cocoModel = this._preloadedCocoModel;
+            this.phoneDetectionInterval = setInterval(() => this.detectPhone(), 3000);
+            return;
+        }
         try {
             this.cocoModel = await cocoSsd.load({
                 modelUrl: '/assets/models/coco-ssd/model.json',
