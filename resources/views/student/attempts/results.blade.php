@@ -17,7 +17,7 @@
         <div class="card-body text-center py-4">
             <div class="mb-2">
                 <span class="fs-1 fw-bold {{ $attempt->score >= 60 ? 'text-success' : 'text-danger' }}">
-                    {{ number_format($attempt->score, 1) }}%
+                    Score {{ number_format($attempt->score, 1) }}%
                 </span>
             </div>
             <div class="progress mx-auto mb-3" style="height: 10px; max-width: 400px;">
@@ -36,11 +36,11 @@
     </div>
 
     @if($attempt->is_flagged)
-        <div class="alert alert-warning">
+        <div class="alert alert-danger">
             <i class="bi bi-exclamation-triangle me-2"></i>
             <strong>This attempt has been flagged for review by your teacher.</strong>
             @if($attempt->flag_reason)
-                <br><span class="small text-muted">{{ $attempt->flag_reason }}</span>
+                <br><span class="small">{{ $attempt->flag_reason }}</span>
             @endif
         </div>
     @endif

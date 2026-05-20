@@ -15,10 +15,17 @@ class StoreUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\s\'\-\.]+$/u'],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', Rule::in(['teacher', 'student'])],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.regex' => 'The name may only contain letters, spaces, hyphens, apostrophes, and periods.',
         ];
     }
 }
